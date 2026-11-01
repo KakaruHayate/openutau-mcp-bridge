@@ -59,21 +59,33 @@ Consequences:
   prompt is written to `mcp-bridge-prompt.txt` instead; the notification names the file.
 - The success path needs a real window, i.e. the same "open a part" step as gate 1.
 
-## Pending: in-app confirmation
+## Confirmed in a running OpenUtau (2026-11-01)
 
-Gates 1 and 3 were verified up to the point where the host has to instantiate the
-plugin; the remaining step is a human double-click on a voice part in a running
-OpenUtau, after which these files should appear next to the DLL:
+Host: OpenUtau development build `0.0.0+1340b6e`, .NET 10.0.14, Avalonia 12.1.3,
+Windows 11, portable layout (`Plugins` next to the executable).
 
-```
-OpenUtau.Plugin.McpBridge.boot.txt      (two lines: initializing, started <endpoint>)
-OpenUtau.Plugin.McpBridge.status.json
-mcp-bridge-prompt.txt                   (after running the menu item)
-```
+- Gate 1: opening a voice part produced `boot.txt` with `initializing` and
+  `started http://127.0.0.1:43102/mcp`, plus `status.json`. The plugin scan itself
+  stays silent, exactly as predicted.
+- Gate 2: `initialize`, `tools/list` (43 tools) and `tools/call` all answered over
+  `127.0.0.1:43102`. A second listener in the same session moved to 43103, so the port
+  walk works against a real occupant.
+- Gate 3: the menu item produced the notification "install prompt copied to clipboard".
+  Two bugs surfaced and were fixed on the way: `MainWindow`/`Clipboard` are exposed
+  through interfaces (explicit implementations), and, on Avalonia 12,
+  `SetTextAsync` is an extension method on `ClipboardExtensions`, not a member of
+  `IClipboard`. Awaiting the returned task while the UI thread is blocked deadlocks it;
+  the plugin now pumps `Dispatcher.UIThread.RunJobs()` until the task settles.
 
-Driving that click with synthetic input was attempted and abandoned: the test window
-was covered by an unrelated application, so injected clicks cannot be aimed reliably.
-Manual confirmation is the honest way to close the gate.
+Two findings worth reporting upstream:
+
+- A project whose notes have no `vibrato` block loads fine, but `HitTestVibrato`
+  (`NotesViewModelHitTest.cs:307`) dereferences the null and throws on mouse move over
+  the piano roll. A default `vibrato` on deserialize would fix it.
+- `UNote.pitch` and `UNote.vibrato` are plain fields with no initializer, so any
+  hand-edited or foreign project can carry nulls into the UI.
+
+The bridge now treats missing `pitch`/`vibrato` as empty instead of failing the read.
 
 
 ## Gate 4 — rendering

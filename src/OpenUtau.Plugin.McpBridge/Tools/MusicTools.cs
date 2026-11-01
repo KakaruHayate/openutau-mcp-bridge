@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
@@ -79,13 +79,14 @@ internal static class MusicTools
             }
         }
 
+        var appliedPitch = note.pitch ?? new UPitch();
         return new JsonObject
         {
             ["dryRun"] = false,
             ["revision"] = Session.Revision,
             ["noteId"] = Session.IdOf(note),
-            ["points"] = PointsJson(note.pitch.data.Select(p => (p.X, p.Y, p.shape)).ToList()),
-            ["snapFirst"] = note.pitch.snapFirst,
+            ["points"] = PointsJson(appliedPitch.data.Select(p => (p.X, p.Y, p.shape)).ToList()),
+            ["snapFirst"] = appliedPitch.snapFirst,
         };
     }
 
@@ -143,6 +144,7 @@ internal static class MusicTools
             throw new BridgeException("write_verification_failed", "Vibrato did not keep the requested values.");
         }
 
+        var appliedPitch = note.pitch ?? new UPitch();
         return new JsonObject
         {
             ["dryRun"] = false,

@@ -1,4 +1,4 @@
-﻿using OpenUtau.Core;
+using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
 
 namespace OpenUtau.Plugin.McpBridge;

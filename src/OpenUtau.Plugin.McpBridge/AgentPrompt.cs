@@ -14,6 +14,13 @@ internal static class AgentPrompt
     {
         var status = StatusReport.Build();
         var appVersion = status["app"]?["version"]?.GetValue<string>() ?? "unknown";
+        var informational = status["app"]?["informational"]?.GetValue<string>();
+        if (appVersion == "0.0.0.0" && !string.IsNullOrWhiteSpace(informational))
+        {
+            // Development builds carry a placeholder assembly version; the informational
+            // one at least names the commit.
+            appVersion = informational!;
+        }
         var runtime = status["app"]?["runtime"]?.GetValue<string>() ?? "unknown";
         var bridgeVersion = BridgeInfo.Version;
         var endpoint = BridgeController.Endpoint;
@@ -23,8 +30,8 @@ internal static class AgentPrompt
 Connect this machine to the OpenUtau MCP bridge (it is already running).
 
 Endpoint : {{endpoint}}
-OpenUtau : {{appVersion}} (.NET {{runtime}})
-Bridge   : {{bridgeVersion}} 路 protocol {{BridgeInfo.Protocol}} 路 net10.0
+OpenUtau : {{appVersion}} ({{runtime}})
+Bridge   : {{bridgeVersion}} - protocol {{BridgeInfo.Protocol}} - net10.0
 
 1. Register the endpoint with your MCP client:
    - Codex        : codex mcp add openutau --url {{endpoint}}

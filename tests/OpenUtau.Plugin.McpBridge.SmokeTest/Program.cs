@@ -636,6 +636,12 @@ var refusedExport = await ToolAsync("openutau_export_audio", new JsonObject
 });
 Check(refusedExport["error"]?.GetValue<string>() == "overwrite_refused", "export refuses to overwrite by default");
 File.Delete(exportPath);
+// ---- agent prompt --------------------------------------------------------------
+
+var prompt = OpenUtau.Plugin.McpBridge.AgentPrompt.Build();
+Check(prompt.All(ch => ch < 128), "agent prompt stays ASCII (a mojibake here reaches the user's chat)");
+Check(prompt.Contains("Endpoint : http://127.0.0.1:"), "agent prompt carries the live endpoint");
+Check(prompt.Contains("openutau_status"), "agent prompt tells the agent to call status first");
 // ---- capability filtering ------------------------------------------------------
 
 var healthy = new Dictionary<string, string>
@@ -852,6 +858,7 @@ internal sealed class Dispatcher : IDisposable
         Thread.Join(TimeSpan.FromSeconds(2));
     }
 }
+
 
 
 

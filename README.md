@@ -1,4 +1,4 @@
-﻿# openutau-mcp-bridge
+# openutau-mcp-bridge
 
 An MCP server that runs **inside** OpenUtau as a plugin DLL, so an AI agent can read and
 edit the project that is currently open.
