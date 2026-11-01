@@ -59,6 +59,23 @@ Consequences:
   prompt is written to `mcp-bridge-prompt.txt` instead; the notification names the file.
 - The success path needs a real window, i.e. the same "open a part" step as gate 1.
 
+## Pending: in-app confirmation
+
+Gates 1 and 3 were verified up to the point where the host has to instantiate the
+plugin; the remaining step is a human double-click on a voice part in a running
+OpenUtau, after which these files should appear next to the DLL:
+
+```
+OpenUtau.Plugin.McpBridge.boot.txt      (two lines: initializing, started <endpoint>)
+OpenUtau.Plugin.McpBridge.status.json
+mcp-bridge-prompt.txt                   (after running the menu item)
+```
+
+Driving that click with synthetic input was attempted and abandoned: the test window
+was covered by an unrelated application, so injected clicks cannot be aimed reliably.
+Manual confirmation is the honest way to close the gate.
+
+
 ## Gate 4 — rendering
 
 Deferred: a meaningful check needs an initialized `DocManager` with a scheduler and

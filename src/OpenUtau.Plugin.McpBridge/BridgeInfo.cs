@@ -19,6 +19,15 @@ internal static class BridgeInfo
         typeof(BridgeInfo).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
     /// <summary>OpenUtau.Core version this build was compiled against.</summary>
-    public static string BuiltAgainst =>
-        typeof(Core.DocManager).Assembly.GetName().Version?.ToString() ?? "unknown";
+    public static string BuiltAgainst
+    {
+        get
+        {
+            var metadata = typeof(BridgeInfo).Assembly
+                .GetCustomAttributes<AssemblyMetadataAttribute>()
+                .FirstOrDefault(a => a.Key == "OpenUtauBaseline")?.Value;
+            var core = typeof(Core.DocManager).Assembly.GetName().Version?.ToString() ?? "unknown";
+            return string.IsNullOrEmpty(metadata) || metadata == "unknown" ? core : metadata;
+        }
+    }
 }

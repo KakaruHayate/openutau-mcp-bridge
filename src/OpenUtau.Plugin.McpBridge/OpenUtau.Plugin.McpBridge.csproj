@@ -16,7 +16,14 @@
          No default is provided on purpose: the repository must not assume
          where an OpenUtau checkout lives on any machine. -->
     <OpenUtauCorePath Condition="'$(OpenUtauCorePath)' == ''"></OpenUtauCorePath>
+    <!-- Recorded in assembly metadata so openutau_status can report which OpenUtau
+         release this DLL was built against. Pass -p:OpenUtauBaseline=0.1.576. -->
+    <OpenUtauBaseline Condition="'$(OpenUtauBaseline)' == ''">unknown</OpenUtauBaseline>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="OpenUtauBaseline" Value="$(OpenUtauBaseline)" />
+  </ItemGroup>
 
   <Target Name="RequireOpenUtauCorePath" BeforeTargets="ResolveReferences" Condition="'$(OpenUtauCorePath)' == ''">
     <Error Text="OpenUtauCorePath is not set. Build with -p:OpenUtauCorePath=/path/to/OpenUtau.Core.dll (see docs/DEVELOPING.md)." />
