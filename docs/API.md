@@ -1,4 +1,4 @@
-# API contract
+﻿# API contract
 
 Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau version).
 
@@ -26,7 +26,7 @@ Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau 
 
 | Tool | Kind | Capability |
 |---|---|---|
-| `openutau_status` | read | — |
+| `openutau_status` | read | 鈥?|
 | `openutau_read_snapshot` | read | notes |
 | `openutau_read_changes` | read | notes |
 | `openutau_list_parts` | read | notes |
@@ -55,6 +55,7 @@ Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau 
 
 Exports and registry lookups run as jobs: the call returns a `jobId`, the product is read
 from the path the job wrote, and a failed or cancelled export publishes nothing.
+| `openutau_add_part` / `openutau_remove_part` | write | part_geometry + history |
 | `openutau_project_info` | read | project_lifecycle |
 | `openutau_project_new` | write | project_lifecycle |
 | `openutau_project_open` | write | project_lifecycle |
@@ -71,7 +72,7 @@ Writes require `expectedRevision` (the host's `DocManager.Revision`), default to
 Reads that expose note content or a curve also return a `fingerprint` (24 hex chars).
 Writes that replace those fields accept `ifMatch`: when the content changed since the
 read, the call fails with `stale_write` and nothing is written. The fingerprint covers
-exactly the fields that write owns — an edit elsewhere in the project never invalidates
+exactly the fields that write owns 鈥?an edit elsewhere in the project never invalidates
 it.
 
 | Read | Fingerprint scope | Writes that accept it |
@@ -152,6 +153,7 @@ degrades the surface instead of breaking calls.
 | `OpenUtau.Plugin.McpBridge.status.json` | Same facts as `openutau_status`, readable when the endpoint is down. |
 | `OpenUtau.Plugin.McpBridge.boot.txt` | Append-only trace of plugin startup; distinguishes "never loaded" from "loaded and failed". |
 | `mcp-bridge-prompt.txt` | Last generated install prompt. |
+
 
 
 

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using OpenUtau.Plugin.McpBridge.Tools;
 
@@ -420,6 +420,31 @@ internal static class ToolRegistry
             new[] { "packages" },
             Schema(),
             PackageTools.Refresh),
+
+        new(
+            "openutau_add_part",
+            "Add part",
+            "Create an empty voice part on a track. Notes can then be added with add_notes.",
+            new[] { "part_geometry", "history" },
+            Schema(
+                P("trackNo", "integer", "Track index (default 0)."),
+                P("name", "string", "Part name."),
+                P("position", "integer", "Start tick (default 0)."),
+                P("duration", "integer", "Duration in ticks (default 1920)."),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            ProjectTools.AddPart),
+
+        new(
+            "openutau_remove_part",
+            "Remove part",
+            "Remove a voice part and everything in it.",
+            new[] { "part_geometry", "history" },
+            Schema(
+                P("partId", "string", "Part id.", true),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            ProjectTools.RemovePart),
 
         new(
             "openutau_project_info",

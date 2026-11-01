@@ -19,7 +19,7 @@ internal static class MusicTools
         var dryRun = Args.Bool(args, "dryRun", true);
         var reset = Args.Bool(args, "reset", false);
         var points = reset ? null : ParsePoints(args);
-        var snapFirst = Args.Bool(args, "snapFirst", note.pitch.snapFirst);
+        var snapFirst = Args.Bool(args, "snapFirst", note.pitch?.snapFirst ?? true);
         CheckIfMatch(args, Fingerprints.Note(part, note), "The note");
 
         if (dryRun)
@@ -57,21 +57,22 @@ internal static class MusicTools
 
         if (!reset)
         {
-            if (note.pitch.data.Count != points!.Count)
+            var applied = note.pitch ?? new UPitch();
+            if (applied.data.Count != points!.Count)
             {
                 throw new BridgeException("write_verification_failed", "Pitch point count changed after the write.");
             }
             // With snapFirst the host owns the first point's Y: it glues the note to the
             // previous one, so comparing it would reject a correct write.
-            var firstOwned = note.pitch.snapFirst;
+            var firstOwned = applied.snapFirst;
             for (var i = 0; i < points.Count; i++)
             {
-                if (firstOwned && i == 0 && Math.Abs(note.pitch.data[i].X - points[i].X) > 0.001)
+                if (firstOwned && i == 0 && Math.Abs(applied.data[i].X - points[i].X) > 0.001)
                 {
                     continue;
                 }
-                if (Math.Abs(note.pitch.data[i].X - points[i].X) > 0.001
-                    || (!(firstOwned && i == 0) && Math.Abs(note.pitch.data[i].Y - points[i].Y) > 0.001))
+                if (Math.Abs(applied.data[i].X - points[i].X) > 0.001
+                    || (!(firstOwned && i == 0) && Math.Abs(applied.data[i].Y - points[i].Y) > 0.001))
                 {
                     throw new BridgeException("write_verification_failed", $"Pitch point {i} did not keep the requested values.");
                 }
@@ -95,7 +96,7 @@ internal static class MusicTools
         CheckIfMatch(args, Fingerprints.Note(part, note), "The note");
         var dryRun = Args.Bool(args, "dryRun", true);
 
-        var current = note.vibrato;
+        var current = note.vibrato ?? new UVibrato();
         var vibrato = new UVibrato
         {
             length = Number(args, "length", current.length),
@@ -135,8 +136,9 @@ internal static class MusicTools
             DocManager.Inst.EndUndoGroup();
         }
 
-        if (Math.Abs(note.vibrato.length - vibrato.length) > 0.01
-            || Math.Abs(note.vibrato.depth - vibrato.depth) > 0.01)
+        var appliedVibrato = note.vibrato ?? new UVibrato();
+        if (Math.Abs(appliedVibrato.length - vibrato.length) > 0.01
+            || Math.Abs(appliedVibrato.depth - vibrato.depth) > 0.01)
         {
             throw new BridgeException("write_verification_failed", "Vibrato did not keep the requested values.");
         }
@@ -714,6 +716,7 @@ internal static class MusicTools
         return array;
     }
 }
+
 
 
 

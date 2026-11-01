@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using OpenUtau.Core;
@@ -30,6 +30,13 @@ internal static class StatusReport
             capabilities[pair.Key] = pair.Value;
         }
 
+        var missing = probes.Where(p => p.Value != "full").Select(p => p.Key).ToList();
+        var reasons = new JsonArray();
+        foreach (var capability in missing)
+        {
+            reasons.Add($"{capability} is not available on this OpenUtau build; its tools are hidden.");
+        }
+
         var implemented = new JsonArray();
         foreach (var tool in ToolRegistry.ToolNames)
         {
@@ -55,9 +62,9 @@ internal static class StatusReport
             },
             ["compatibility"] = new JsonObject
             {
-                ["ok"] = probes.Values.All(v => v == "full"),
-                ["level"] = "partial",
-                ["reasons"] = new JsonArray("Bridge build " + BridgeInfo.Version + " is the M0 scaffold: only status is implemented."),
+                ["ok"] = missing.Count == 0,
+                ["level"] = missing.Count == 0 ? "full" : (probes.TryGetValue("notes", out var notesLevel) && notesLevel == "full" ? "partial" : "unsupported"),
+                ["reasons"] = reasons,
                 ["capabilities"] = capabilities,
             },
             ["tools"] = new JsonObject
@@ -82,3 +89,4 @@ internal static class StatusReport
             .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
             .FirstOrDefault()?.InformationalVersion;
 }
+

@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using OpenUtau.Core.Ustx;
 
@@ -19,9 +19,9 @@ internal static class Fingerprints
             .Append(note.duration).Append('|')
             .Append(note.tone).Append('|')
             .Append(note.lyric).Append('|');
-        AppendPitch(builder, note.pitch);
+        AppendPitch(builder, note.pitch ?? new UPitch());
         builder.Append('|');
-        AppendVibrato(builder, note.vibrato);
+        AppendVibrato(builder, note.vibrato ?? new UVibrato());
         return Hash(builder.ToString());
     }
 
@@ -84,3 +84,4 @@ internal static class Fingerprints
         return Convert.ToHexString(bytes, 0, 12).ToLowerInvariant();
     }
 }
+

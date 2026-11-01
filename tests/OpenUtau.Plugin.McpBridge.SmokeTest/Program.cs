@@ -120,6 +120,7 @@ foreach (var expected in new[]
     "openutau_job_get", "openutau_job_list", "openutau_job_cancel",
     "openutau_packages_list", "openutau_packages_search", "openutau_packages_install",
     "openutau_packages_uninstall", "openutau_packages_refresh",
+    "openutau_add_part", "openutau_remove_part",
     "openutau_project_info", "openutau_project_new",
     "openutau_project_open",
     "openutau_project_save", "openutau_project_save_as",
@@ -555,6 +556,43 @@ var noSingerRenderer = await ToolAsync("openutau_set_track_renderer", new JsonOb
     ["dryRun"] = true,
 });
 Check(noSingerRenderer["error"]?.GetValue<string>() == "invalid_request", "renderer binding needs a singer first");
+// ---- parts ---------------------------------------------------------------------
+
+var revisionParts = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
+var partsBefore = (await ToolAsync("openutau_read_snapshot"))["parts"]!.AsArray().Count;
+var addedPart = await ToolAsync("openutau_add_part", new JsonObject
+{
+    ["trackNo"] = 0,
+    ["name"] = "Scratch",
+    ["duration"] = 960,
+    ["expectedRevision"] = revisionParts,
+    ["dryRun"] = false,
+});
+Check(addedPart["__isError"] == null, "add_part committed");
+if (addedPart["__isError"] != null)
+{
+    Console.WriteLine("add_part error: " + addedPart.ToJsonString());
+}
+var newPartId = addedPart["partId"]!.GetValue<string>();
+Check((await ToolAsync("openutau_read_snapshot"))["parts"]!.AsArray().Count == partsBefore + 1, "add_part grew the project");
+
+var partNotes = await ToolAsync("openutau_add_notes", new JsonObject
+{
+    ["partId"] = newPartId,
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+    ["notes"] = new JsonArray { new JsonObject { ["position"] = 0, ["duration"] = 480, ["tone"] = 60 } },
+});
+Check(partNotes["__isError"] == null, "notes can be added to a new part");
+
+var removedPart = await ToolAsync("openutau_remove_part", new JsonObject
+{
+    ["partId"] = newPartId,
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+});
+Check(removedPart["removed"]?.GetValue<bool>() == true, "remove_part committed");
+Check((await ToolAsync("openutau_read_snapshot"))["parts"]!.AsArray().Count == partsBefore, "remove_part restored the count");
 // ---- export and jobs -----------------------------------------------------------
 
 var capabilities = await ToolAsync("openutau_export_capabilities");
@@ -814,6 +852,7 @@ internal sealed class Dispatcher : IDisposable
         Thread.Join(TimeSpan.FromSeconds(2));
     }
 }
+
 
 
 

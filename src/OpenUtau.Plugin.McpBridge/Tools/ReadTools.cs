@@ -128,8 +128,9 @@ internal static class ReadTools
         var note = Session.NoteById(noteId)
             ?? throw new BridgeException("invalid_request", $"Unknown note id '{noteId}' in this session.");
 
+        var pitch = note.pitch ?? new UPitch();
         var points = new JsonArray();
-        foreach (var point in note.pitch.data)
+        foreach (var point in pitch.data)
         {
             points.Add(new JsonObject
             {
@@ -146,7 +147,7 @@ internal static class ReadTools
             ["noteId"] = noteId,
             ["fingerprint"] = Fingerprints.Note(part, note),
             ["source"] = "points",
-            ["snapFirst"] = note.pitch.snapFirst,
+            ["snapFirst"] = pitch.snapFirst,
             ["points"] = points,
         };
     }
@@ -377,9 +378,12 @@ internal static class ReadTools
 
         item["tuning"] = note.tuning;
         item["fingerprint"] = Fingerprints.Note(part, note);
-        item["snapFirst"] = note.pitch.snapFirst;
+        // A hand-edited .ustx can omit these blocks; the host then carries null and its
+        // own UI crashes on hover, so the bridge treats them as empty rather than throwing.
+        var pitch = note.pitch ?? new UPitch();
+        item["snapFirst"] = pitch.snapFirst;
         var points = new JsonArray();
-        foreach (var point in note.pitch.data)
+        foreach (var point in pitch.data)
         {
             points.Add(new JsonObject
             {
@@ -391,7 +395,7 @@ internal static class ReadTools
         }
         item["pitchPoints"] = points;
 
-        var vibrato = note.vibrato;
+        var vibrato = note.vibrato ?? new UVibrato();
         item["vibrato"] = new JsonObject
         {
             ["length"] = Math.Round(vibrato.length, 2),
@@ -439,6 +443,7 @@ internal static class ReadTools
         return item;
     }
 }
+
 
 
 
