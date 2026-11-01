@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>OpenUtau.Plugin.McpBridge</AssemblyName>
+    <RootNamespace>OpenUtau.Plugin.McpBridge</RootNamespace>
+    <Version>0.1.0</Version>
+    <!-- CA2255: a module initializer is the whole point here — it is the only hook
+         that runs when OpenUtau loads this DLL with Assembly.LoadFile. -->
+    <NoWarn>$(NoWarn);CA2255</NoWarn>
+    <!-- Path to the OpenUtau.Core.dll this build compiles against.
+         Always pass it explicitly: -p:OpenUtauCorePath=<path>.
+         No default is provided on purpose: the repository must not assume
+         where an OpenUtau checkout lives on any machine. -->
+    <OpenUtauCorePath Condition="'$(OpenUtauCorePath)' == ''"></OpenUtauCorePath>
+  </PropertyGroup>
+
+  <Target Name="RequireOpenUtauCorePath" BeforeTargets="ResolveReferences" Condition="'$(OpenUtauCorePath)' == ''">
+    <Error Text="OpenUtauCorePath is not set. Build with -p:OpenUtauCorePath=/path/to/OpenUtau.Core.dll (see docs/DEVELOPING.md)." />
+  </Target>
+
+  <ItemGroup>
+    <Reference Include="OpenUtau.Core">
+      <HintPath>$(OpenUtauCorePath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
