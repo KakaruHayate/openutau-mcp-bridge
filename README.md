@@ -24,7 +24,8 @@ edit the project that is currently open.
    text into your agent.
 
 For the one-paste install prompt (what to hand an agent before the DLL is there), see
-[docs/INSTALL.md](docs/INSTALL.md).
+[docs/INSTALL.md](docs/INSTALL.md). For the full detect-install-connect prompt used in
+the open test, see [docs/OPEN-TEST.md](docs/OPEN-TEST.md).
 
 The endpoint is `http://127.0.0.1:43102/mcp`. When that port is taken the next free one is
 used, and the real port is written into the copied prompt and into
