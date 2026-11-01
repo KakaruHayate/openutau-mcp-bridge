@@ -1,4 +1,4 @@
-﻿using System.Net.Http;
+using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -136,7 +136,7 @@ foreach (var tool in tools)
 // ---- status --------------------------------------------------------------------
 
 var status = await ToolAsync("openutau_status");
-Check(status["bridge"]?["protocol"]?.GetValue<int>() == 1, "status protocol");
+Check(status["bridge"]?["protocol"]?.GetValue<int>() == 2, "status protocol");
 Check(status["project"]?["sessionId"]?.GetValue<string>()?.Length == 32, "status session id");
 
 // ---- snapshot ------------------------------------------------------------------

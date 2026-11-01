@@ -30,7 +30,7 @@ internal static class AgentPrompt
 Connect this machine to the OpenUtau MCP bridge (it is already running).
 
 Endpoint : {{endpoint}}
-OpenUtau : {{appVersion}} ({{runtime}})
+OpenUtau : {{appVersion}} (on .NET {{runtime}})
 Bridge   : {{bridgeVersion}} - protocol {{BridgeInfo.Protocol}} - net10.0
 
 1. Register the endpoint with your MCP client:
