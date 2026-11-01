@@ -41,12 +41,18 @@ at application start: the bridge comes up the first time you open a part. This i
 tracked as an upstream follow-up; the dialog that would start it earlier is planned
 alongside the app's existing DAW-integration guide.
 
+## Install
+
+The one-paste install prompt for an agent (and the manual steps) is in
+[docs/INSTALL.md](docs/INSTALL.md).
+
 ## Development
 
 See [docs/DEVELOPING.md](docs/DEVELOPING.md). The protocol and compatibility contract
 is in [docs/API.md](docs/API.md).
 
 Licensed under the Mozilla Public License 2.0 (see [LICENSE](LICENSE)).
+
 
 
 
