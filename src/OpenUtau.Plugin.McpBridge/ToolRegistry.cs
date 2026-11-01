@@ -177,6 +177,7 @@ internal static class ToolRegistry
                 P("partId", "string", "Part id.", true),
                 P("noteId", "string", "Note id.", true),
                 P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("ifMatch", "string", "Fingerprint from a previous read; rejects the write if the content changed."),
                 P("dryRun", "boolean", "Default true: validate and preview only."),
                 P("reset", "boolean", "Reset to the host's default pitch points instead of writing a list."),
                 P("snapFirst", "boolean", "Whether the first point stays glued to the previous note."),
@@ -192,6 +193,7 @@ internal static class ToolRegistry
                 P("partId", "string", "Part id.", true),
                 P("noteId", "string", "Note id.", true),
                 P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("ifMatch", "string", "Fingerprint from a previous read; rejects the write if the content changed."),
                 P("dryRun", "boolean", "Default true: validate and preview only."),
                 P("length", "number", "Vibrato coverage, percent of the note."),
                 P("period", "number", "Milliseconds."),
@@ -215,6 +217,7 @@ internal static class ToolRegistry
                 P("abbr", "string", "Expression abbreviation.", true),
                 P("value", "number", "Value inside the descriptor's range; null clears it."),
                 P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("ifMatch", "string", "Fingerprint from a previous read; rejects the write if the content changed."),
                 P("dryRun", "boolean", "Default true: validate and preview only.")),
             MusicTools.SetExpression),
 
@@ -238,6 +241,7 @@ internal static class ToolRegistry
                     ["required"] = new JsonArray { "tick", "value" },
                 }),
                 P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("ifMatch", "string", "Fingerprint from a previous read; rejects the write if the content changed."),
                 P("dryRun", "boolean", "Default true: validate and preview only.")),
             MusicTools.WriteCurve),
 
@@ -284,6 +288,7 @@ internal static class ToolRegistry
                 P("field", "string", "alias | offset", true),
                 P("value", "string", "Alias text, or an integer offset in milliseconds."),
                 P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("ifMatch", "string", "Fingerprint from a previous read; rejects the write if the content changed."),
                 P("dryRun", "boolean", "Default true: validate and preview only.")),
             MusicTools.SetPhonemeOverride),
 
@@ -630,4 +635,5 @@ internal static class ToolRegistry
         return schema;
     }
 }
+
 

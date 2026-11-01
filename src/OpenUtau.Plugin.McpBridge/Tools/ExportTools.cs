@@ -67,7 +67,7 @@ internal static class ExportTools
             var reasons = Preflight(project);
             if (reasons.Count > 0)
             {
-                throw new BridgeException("unsupported_feature", string.Join("; ", reasons.Select(r => r.GetValue<string>())));
+                throw new BridgeException("unsupported_feature", string.Join("; ", reasons.Select(r => r!.GetValue<string>())));
             }
 
             var incomplete = project.parts.OfType<UVoicePart>()
@@ -272,4 +272,5 @@ internal static class ExportTools
         return reasons;
     }
 }
+
 

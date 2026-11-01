@@ -393,6 +393,61 @@ var curveRead = await ToolAsync("openutau_read_curve", new JsonObject { ["partId
 Check(curveRead["total"]!.GetValue<int>() == 3, "write_curve wrote three points");
 Check(curveRead["points"]![1]!["value"]!.GetValue<int>() == 20, "curve value at 480");
 
+// ifMatch: a write must refuse to overwrite content that changed since the read.
+var fingerprint = (await ToolAsync("openutau_read_pitch", new JsonObject { ["partId"] = partId, ["noteId"] = targetId }))["fingerprint"]!.GetValue<string>();
+Check(fingerprint.Length == 24, "read_pitch returns a fingerprint");
+
+var guarded = await ToolAsync("openutau_set_vibrato", new JsonObject
+{
+    ["partId"] = partId,
+    ["noteId"] = targetId,
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+    ["ifMatch"] = fingerprint,
+    ["depth"] = 30,
+});
+Check(guarded["__isError"] == null, "fresh ifMatch lets the write through");
+
+var staleWrite = await ToolAsync("openutau_set_vibrato", new JsonObject
+{
+    ["partId"] = partId,
+    ["noteId"] = targetId,
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+    ["ifMatch"] = fingerprint,
+    ["depth"] = 10,
+});
+Check(staleWrite["error"]?.GetValue<string>() == "stale_write", "stale ifMatch is rejected");
+
+var curveFingerprint = (await ToolAsync("openutau_read_curve", new JsonObject { ["partId"] = partId, ["abbr"] = "dyn" }))["fingerprint"]!.GetValue<string>();
+Check(curveFingerprint.Length == 24, "read_curve returns a fingerprint");
+
+var curveGuarded = await ToolAsync("openutau_write_curve", new JsonObject
+{
+    ["partId"] = partId,
+    ["abbr"] = "dyn",
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+    ["ifMatch"] = curveFingerprint,
+    ["points"] = new JsonArray
+    {
+        new JsonObject { ["tick"] = 0, ["value"] = 0 },
+        new JsonObject { ["tick"] = 960, ["value"] = 5 },
+    },
+});
+Check(curveGuarded["__isError"] == null, "fresh curve fingerprint is accepted");
+
+var curveStale = await ToolAsync("openutau_write_curve", new JsonObject
+{
+    ["partId"] = partId,
+    ["abbr"] = "dyn",
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+    ["ifMatch"] = curveFingerprint,
+    ["points"] = new JsonArray { new JsonObject { ["tick"] = 0, ["value"] = 1 } },
+});
+Check(curveStale["error"]?.GetValue<string>() == "stale_write", "stale curve fingerprint is rejected");
+
 var revPart = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
 var partEdited = await ToolAsync("openutau_edit_part", new JsonObject
 {
@@ -759,6 +814,7 @@ internal sealed class Dispatcher : IDisposable
         Thread.Join(TimeSpan.FromSeconds(2));
     }
 }
+
 
 
 

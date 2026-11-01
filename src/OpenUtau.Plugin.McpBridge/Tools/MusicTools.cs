@@ -20,6 +20,7 @@ internal static class MusicTools
         var reset = Args.Bool(args, "reset", false);
         var points = reset ? null : ParsePoints(args);
         var snapFirst = Args.Bool(args, "snapFirst", note.pitch.snapFirst);
+        CheckIfMatch(args, Fingerprints.Note(part, note), "The note");
 
         if (dryRun)
         {
@@ -91,6 +92,7 @@ internal static class MusicTools
     {
         var (_, part, note) = NoteTarget(args);
         CheckRevision(args);
+        CheckIfMatch(args, Fingerprints.Note(part, note), "The note");
         var dryRun = Args.Bool(args, "dryRun", true);
 
         var current = note.vibrato;
@@ -174,6 +176,10 @@ internal static class MusicTools
         }
 
         var notes = NoteList(part, args);
+        foreach (var note in notes)
+        {
+            CheckIfMatch(args, Fingerprints.Expression(part, note, abbr), "The note expression");
+        }
         if (dryRun)
         {
             var ids = new JsonArray();
@@ -241,6 +247,8 @@ internal static class MusicTools
         {
             throw new BridgeException("invalid_request", $"Unknown expression abbreviation '{abbr}'.");
         }
+
+        CheckIfMatch(args, Fingerprints.Curve(part, abbr), "The curve");
 
         var existing = part.curves.FirstOrDefault(c => c.abbr == abbr);
         var oldXs = existing?.xs.ToArray() ?? Array.Empty<int>();
@@ -493,6 +501,7 @@ internal static class MusicTools
             throw new BridgeException("invalid_request", "'index' is required (0-based phoneme index).");
         }
         var field = Args.ReqStr(args, "field");
+        CheckIfMatch(args, Fingerprints.Note(part, note), "The note");
 
         switch (field)
         {
@@ -594,6 +603,19 @@ internal static class MusicTools
         return new List<UNote> { single.Note };
     }
 
+    private static void CheckIfMatch(JsonElement? args, string actual, string scope)
+    {
+        var expected = Args.Str(args, "ifMatch");
+        if (string.IsNullOrEmpty(expected))
+        {
+            return;
+        }
+        if (!string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new BridgeException("stale_write", $"{scope} changed since it was read. Re-read it, then retry.");
+        }
+    }
+
     private static void CheckRevision(JsonElement? args)
     {
         var expected = Args.Long(args, "expectedRevision", -1);
@@ -692,5 +714,6 @@ internal static class MusicTools
         return array;
     }
 }
+
 
 

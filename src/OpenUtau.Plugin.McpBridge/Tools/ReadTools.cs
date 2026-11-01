@@ -144,6 +144,7 @@ internal static class ReadTools
         {
             ["partId"] = part.Id.ToString(),
             ["noteId"] = noteId,
+            ["fingerprint"] = Fingerprints.Note(part, note),
             ["source"] = "points",
             ["snapFirst"] = note.pitch.snapFirst,
             ["points"] = points,
@@ -191,6 +192,7 @@ internal static class ReadTools
         {
             ["partId"] = part.Id.ToString(),
             ["abbr"] = curve.abbr,
+            ["fingerprint"] = Fingerprints.Curve(part, curve.abbr),
             ["total"] = curve.xs.Count,
             ["offset"] = offset,
             ["points"] = points,
@@ -374,6 +376,7 @@ internal static class ReadTools
         }
 
         item["tuning"] = note.tuning;
+        item["fingerprint"] = Fingerprints.Note(part, note);
         item["snapFirst"] = note.pitch.snapFirst;
         var points = new JsonArray();
         foreach (var point in note.pitch.data)
@@ -436,5 +439,6 @@ internal static class ReadTools
         return item;
     }
 }
+
 
 
