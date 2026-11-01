@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 
 namespace OpenUtau.Plugin.McpBridge;
 
@@ -24,7 +24,7 @@ Connect this machine to the OpenUtau MCP bridge (it is already running).
 
 Endpoint : {{endpoint}}
 OpenUtau : {{appVersion}} (.NET {{runtime}})
-Bridge   : {{bridgeVersion}} · protocol {{BridgeInfo.Protocol}} · net10.0
+Bridge   : {{bridgeVersion}} 路 protocol {{BridgeInfo.Protocol}} 路 net10.0
 
 1. Register the endpoint with your MCP client:
    - Codex        : codex mcp add openutau --url {{endpoint}}
@@ -64,43 +64,142 @@ Do not rebuild the DLL from source: a self-built build usually targets the wrong
             StatusFile.AppendError("prompt-write", e);
         }
 
-        var copied = TryCopyToClipboard(text);
+        var (copied, detail) = TryCopyToClipboard(text);
+        if (!copied)
+        {
+            StatusFile.AppendError("clipboard-unavailable", new InvalidOperationException(detail));
+        }
         return copied
-            ? $"MCP bridge running at {BridgeController.Endpoint} — install prompt copied to clipboard."
-            : $"MCP bridge running at {BridgeController.Endpoint} — prompt saved to {path} (clipboard unavailable).";
+            ? $"MCP bridge running at {BridgeController.Endpoint} 鈥?install prompt copied to clipboard."
+            : $"MCP bridge running at {BridgeController.Endpoint} 鈥?prompt saved to {path} (clipboard unavailable: {detail}).";
     }
 
     /// <summary>
-    /// Avalonia is not referenced at compile time: the plugin only needs its clipboard,
-    /// and a hard reference would tie this DLL to the host's Avalonia version.
+    /// Avalonia is not referenced at compile time: the plugin only needs its clipboard, and a
+    /// hard reference would tie this DLL to the host's Avalonia version. Every lookup is
+    /// interface-aware because several of these members are explicit interface implementations,
+    /// and the clipboard task is pumped instead of awaited: blocking the UI thread would
+    /// deadlock the very dispatcher the task needs.
     /// </summary>
-    private static bool TryCopyToClipboard(string text)
+    private static (bool Ok, string Detail) TryCopyToClipboard(string text)
     {
+        var trail = new List<string>();
         try
         {
             var applicationType = FindLoadedType("Avalonia.Application");
-            var current = applicationType?.GetProperty("Current", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
-            var lifetime = applicationType?.GetProperty("ApplicationLifetime")?.GetValue(current);
-            var mainWindow = lifetime?.GetType().GetProperty("MainWindow")?.GetValue(lifetime);
-            var clipboard = mainWindow?.GetType().GetProperty("Clipboard")?.GetValue(mainWindow);
-            var setText = clipboard?.GetType().GetMethod("SetTextAsync", new[] { typeof(string) });
+            var current = StaticMember(applicationType, "Current");
+            var lifetime = Member(current, "ApplicationLifetime");
+            var mainWindow = Member(lifetime, "MainWindow");
+            var clipboard = Member(mainWindow, "Clipboard");
+            trail.Add($"app={applicationType != null} current={current != null} lifetime={lifetime?.GetType().Name ?? "null"} window={mainWindow != null} clipboard={clipboard != null}");
+
+            if (clipboard == null)
+            {
+                return (false, "no Avalonia clipboard on the main window");
+            }
+
+            var setText = Method(clipboard.GetType(), "SetTextAsync", typeof(string));
             if (setText == null)
             {
-                return false;
+                return (false, "IClipboard.SetTextAsync not found");
             }
 
             var result = setText.Invoke(clipboard, new object[] { text });
             if (result is Task task)
             {
-                return task.Wait(TimeSpan.FromSeconds(3)) && !task.IsFaulted;
+                var completed = PumpUntil(task, TimeSpan.FromSeconds(2));
+                trail.Add($"task completed={completed} faulted={task.IsFaulted}");
+                if (!completed || task.IsFaulted)
+                {
+                    StatusFile.AppendError("clipboard-task", task.Exception is { } fault ? (Exception)fault : new TimeoutException("clipboard task did not complete"));
+                    return (false, string.Join("; ", trail));
+                }
             }
-            return true;
+
+            return (true, "ok");
         }
         catch (Exception e)
         {
             StatusFile.AppendError("clipboard", e);
-            return false;
+            trail.Add(e.GetType().Name + ": " + e.Message);
+            return (false, string.Join("; ", trail));
         }
+    }
+
+    /// <summary>Runs queued dispatcher jobs until the task settles, so an async clipboard call can finish.</summary>
+    private static bool PumpUntil(Task task, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!task.IsCompleted && DateTime.UtcNow < deadline)
+        {
+            RunDispatcherJobs();
+            Thread.Sleep(5);
+        }
+        return task.IsCompleted;
+    }
+
+    private static void RunDispatcherJobs()
+    {
+        try
+        {
+            var dispatcherType = FindLoadedType("Avalonia.Threading.Dispatcher");
+            var uiThread = StaticMember(dispatcherType, "UIThread");
+            if (uiThread == null)
+            {
+                return;
+            }
+            var runJobs = Method(uiThread.GetType(), "RunJobs");
+            runJobs?.Invoke(uiThread, null);
+        }
+        catch
+        {
+            // Pumping is best effort; the timeout decides the outcome.
+        }
+    }
+
+    private static object? StaticMember(Type? type, string name) =>
+        type?.GetProperty(name, BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+
+    /// <summary>Property lookup that also sees explicit interface implementations.</summary>
+    private static object? Member(object? target, string name)
+    {
+        if (target == null)
+        {
+            return null;
+        }
+        var type = target.GetType();
+        var property = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+        if (property != null)
+        {
+            return property.GetValue(target);
+        }
+        foreach (var contract in type.GetInterfaces())
+        {
+            property = contract.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+            if (property != null)
+            {
+                return property.GetValue(target);
+            }
+        }
+        return null;
+    }
+
+    private static MethodInfo? Method(Type type, string name, params Type[] parameters)
+    {
+        var method = type.GetMethod(name, parameters);
+        if (method != null)
+        {
+            return method;
+        }
+        foreach (var contract in type.GetInterfaces())
+        {
+            method = contract.GetMethod(name, parameters);
+            if (method != null)
+            {
+                return method;
+            }
+        }
+        return null;
     }
 
     private static Type? FindLoadedType(string fullName)
@@ -116,3 +215,5 @@ Do not rebuild the DLL from source: a self-built build usually targets the wrong
         return null;
     }
 }
+
+
