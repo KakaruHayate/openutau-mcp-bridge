@@ -167,6 +167,50 @@ internal static class ToolRegistry
             new[] { "history" },
             Schema(),
             WriteTools.HistoryState),
+
+        new(
+            "openutau_project_info",
+            "Project info",
+            "Name, path, dirty flag, revision and size of the open project.",
+            new[] { "project_lifecycle" },
+            Schema(),
+            ProjectTools.Info),
+
+        new(
+            "openutau_project_new",
+            "New project",
+            "Replace the open project with a fresh one. Rotates the session id: earlier part/note ids stop being valid.",
+            new[] { "project_lifecycle" },
+            Schema(P("discardChanges", "boolean", "Allow throwing away unsaved changes.")),
+            ProjectTools.New),
+
+        new(
+            "openutau_project_open",
+            "Open project",
+            "Load a project from an absolute path. Refuses to discard unsaved changes unless `discardChanges` is true.",
+            new[] { "project_lifecycle" },
+            Schema(
+                P("path", "string", "Absolute path to a project file.", true),
+                P("discardChanges", "boolean", "Allow throwing away unsaved changes.")),
+            ProjectTools.Open),
+
+        new(
+            "openutau_project_save",
+            "Save project",
+            "Save to the project's current path. Fails when the project has never been saved; use save_as then.",
+            new[] { "project_lifecycle" },
+            Schema(),
+            ProjectTools.Save),
+
+        new(
+            "openutau_project_save_as",
+            "Save project as",
+            "Save to an absolute path and continue there. Existing files are refused unless `overwrite` is true.",
+            new[] { "project_lifecycle" },
+            Schema(
+                P("path", "string", "Absolute target path.", true),
+                P("overwrite", "boolean", "Replace the target if it exists.")),
+            ProjectTools.SaveAs),
     };
 
     // ---- composite schemas -----------------------------------------------------

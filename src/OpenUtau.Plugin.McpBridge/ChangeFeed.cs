@@ -1,4 +1,4 @@
-using OpenUtau.Core;
+﻿using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
 
 namespace OpenUtau.Plugin.McpBridge;
@@ -96,18 +96,28 @@ internal sealed class ChangeFeed : ICmdSubscriber
     {
         lock (gate)
         {
-            requiresSnapshot = false;
-            if (sinceSequence > sequence)
+            // The oldest sequence still answerable. An empty buffer means "nothing since
+            // the last entry", so the next answerable point is sequence + 1.
+            var oldest = buffer.Count > 0 ? buffer.Peek().Sequence : sequence + 1;
+            requiresSnapshot = sinceSequence > sequence || sinceSequence < oldest - 1;
+            if (requiresSnapshot)
             {
-                requiresSnapshot = true;
-                return Array.Empty<Entry>();
-            }
-            if (buffer.Count > 0 && sinceSequence + 1 < buffer.Peek().Sequence)
-            {
-                requiresSnapshot = true;
                 return Array.Empty<Entry>();
             }
             return buffer.Where(e => e.Sequence > sinceSequence).Take(limit).ToList();
         }
     }
+
+    /// <summary>
+    /// The document was replaced: drop the buffered entries so callers holding an old
+    /// sequence are told to take a fresh snapshot.
+    /// </summary>
+    public void MarkSessionBoundary()
+    {
+        lock (gate)
+        {
+            buffer.Clear();
+        }
+    }
 }
+

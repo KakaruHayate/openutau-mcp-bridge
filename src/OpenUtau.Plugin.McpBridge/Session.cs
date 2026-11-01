@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
@@ -11,7 +11,21 @@ namespace OpenUtau.Plugin.McpBridge;
 /// </summary>
 internal static class Session
 {
-    public static string Id { get; } = Guid.NewGuid().ToString("N");
+    private static string id = Guid.NewGuid().ToString("N");
+
+    /// <summary>Session id; rotates whenever the host replaces the document.</summary>
+    public static string Id => id;
+
+    /// <summary>
+    /// Called after the host loads or creates a project: ids handed out for the previous
+    /// document must stop resolving, otherwise an agent could edit the wrong note.
+    /// </summary>
+    public static void Rotate()
+    {
+        id = Guid.NewGuid().ToString("N");
+        ChangeFeed.Instance.MarkSessionBoundary();
+        ResetIds();
+    }
 
     public static string StartedAt { get; } = DateTimeOffset.UtcNow.ToString("O");
 
@@ -127,3 +141,4 @@ internal sealed class ReferenceComparer<T> : IEqualityComparer<T> where T : clas
 
     public int GetHashCode(T obj) => RuntimeHelpers.GetHashCode(obj);
 }
+

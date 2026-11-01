@@ -7,6 +7,15 @@ using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
 using OpenUtau.Plugin.McpBridge;
 
+// OpenUtau's own dependencies live in a subfolder (see the csproj); resolve them from
+// there so the harness never has to shadow the SDK's runtime.
+var openUtauLibs = Path.Combine(AppContext.BaseDirectory, "openutau");
+System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (context, name) =>
+{
+    var candidate = Path.Combine(openUtauLibs, name.Name + ".dll");
+    return File.Exists(candidate) ? context.LoadFromAssemblyPath(candidate) : null;
+};
+
 var failures = new List<string>();
 
 // The host executes document commands on one thread and treats everything else as
@@ -88,6 +97,8 @@ foreach (var expected in new[]
     "openutau_read_notes", "openutau_read_pitch", "openutau_list_expressions", "openutau_list_curves",
     "openutau_read_curve", "openutau_add_notes", "openutau_edit_notes", "openutau_delete_notes",
     "openutau_undo", "openutau_redo", "openutau_history_state",
+    "openutau_project_info", "openutau_project_new", "openutau_project_open",
+    "openutau_project_save", "openutau_project_save_as",
 })
 {
     Check(names.Contains(expected), $"tools/list contains {expected}");
@@ -260,6 +271,65 @@ var missingRevision = await ToolAsync("openutau_delete_notes", new JsonObject
 });
 Check(missingRevision["error"]?.GetValue<string>() == "invalid_request", "missing expectedRevision rejected");
 
+// ---- project lifecycle ---------------------------------------------------------
+
+var info = await ToolAsync("openutau_project_info");
+var session1 = info["sessionId"]!.GetValue<string>();
+Check(info["partCount"]!.GetValue<int>() == 1, "project_info part count");
+
+var savePath = Path.Combine(Path.GetTempPath(), "openutau-mcp-bridge-smoke", "smoke.ustx");
+Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
+if (File.Exists(savePath))
+{
+    File.Delete(savePath);
+}
+
+var saved = await ToolAsync("openutau_project_save_as", new JsonObject { ["path"] = savePath });
+Check(saved["__isError"] == null, "save_as committed");
+if (saved["__isError"] != null)
+{
+    Console.WriteLine("save_as error: " + saved.ToJsonString());
+}
+Check(File.Exists(savePath), "save_as wrote the file");
+Check(saved["path"]?.GetValue<string>() == savePath, "save_as reports the path");
+
+var created = await ToolAsync("openutau_project_new", new JsonObject { ["discardChanges"] = true });
+Check(created["__isError"] == null, "project_new ran");
+var session2 = created["sessionId"]!.GetValue<string>();
+Check(session2 != session1, "session rotates on new");
+var afterNew = await ToolAsync("openutau_read_snapshot");
+Check(afterNew["parts"]!.AsArray().Count == 0, "new project has no parts");
+
+var reopened = await ToolAsync("openutau_project_open", new JsonObject { ["path"] = savePath, ["discardChanges"] = true });
+Check(reopened["__isError"] == null, "project_open ran");
+if (reopened["__isError"] != null)
+{
+    Console.WriteLine("project_open error: " + reopened.ToJsonString());
+}
+var session3 = reopened["sessionId"]!.GetValue<string>();
+Check(session3 != session2, "session rotates on open");
+var afterOpen = await ToolAsync("openutau_read_snapshot");
+Check(afterOpen["parts"]!.AsArray().Count == 1, "opened project has its part back");
+Check(afterOpen["project"]!["name"]!.GetValue<string>() == "Smoke Project", "opened project keeps its name");
+
+var refused = await ToolAsync("openutau_project_save_as", new JsonObject { ["path"] = savePath });
+Check(refused["error"]?.GetValue<string>() == "overwrite_refused", "save_as refuses to overwrite");
+
+var savedAgain = await ToolAsync("openutau_project_save");
+Check(savedAgain["__isError"] == null, "project_save works after open");
+
+var revision4 = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
+var partAfterOpen = afterOpen["parts"]![0]!["id"]!.GetValue<string>();
+await ToolAsync("openutau_add_notes", new JsonObject
+{
+    ["partId"] = partAfterOpen,
+    ["expectedRevision"] = revision4,
+    ["dryRun"] = false,
+    ["notes"] = new JsonArray { new JsonObject { ["position"] = 1920, ["duration"] = 120, ["tone"] = 60 } },
+});
+var blocked = await ToolAsync("openutau_project_new", new JsonObject());
+Check(blocked["error"]?.GetValue<string>() == "unsaved_changes", "new refuses to drop unsaved work");
+
 // ---- error path ----------------------------------------------------------------
 
 var bad = await ToolAsync("openutau_read_notes", new JsonObject { ["partId"] = "does-not-exist" });
@@ -358,4 +428,6 @@ internal sealed class Dispatcher : IDisposable
         Thread.Join(TimeSpan.FromSeconds(2));
     }
 }
+
+
 

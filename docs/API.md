@@ -39,6 +39,13 @@ Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau 
 | `openutau_edit_notes` | write | notes + history |
 | `openutau_delete_notes` | write | notes + history |
 | `openutau_undo` / `openutau_redo` / `openutau_history_state` | write/read | history |
+| `openutau_project_info` | read | project_lifecycle |
+| `openutau_project_new` | write | project_lifecycle |
+| `openutau_project_open` | write | project_lifecycle |
+| `openutau_project_save` / `openutau_project_save_as` | write | project_lifecycle |
+
+Project new/open rotate the session id: ids from the previous document are void.
+Save writes a sibling temp file and publishes it with a rename.
 
 Writes require `expectedRevision` (the host's `DocManager.Revision`), default to
 `dryRun: true`, land in a single undo group, and are verified by reading the values back.
@@ -101,6 +108,7 @@ degrades the surface instead of breaking calls.
 | `write_verification_failed` | The write landed but read-back disagrees. |
 | `path_not_allowed` | Path outside the configured access roots. |
 | `overwrite_refused` | Target exists and `overwrite` was not set. |
+| `unsaved_changes` | New/open was asked to drop unsaved edits without `discardChanges`. |
 | `render_failed` | Rendering or export failed; nothing was published. |
 | `render_incomplete` | Rendering produced failed ranges and `allowIncomplete` was not set. |
 | `job_cancelled` | The job was cancelled by the caller. |
@@ -114,4 +122,5 @@ degrades the surface instead of breaking calls.
 | `OpenUtau.Plugin.McpBridge.status.json` | Same facts as `openutau_status`, readable when the endpoint is down. |
 | `OpenUtau.Plugin.McpBridge.boot.txt` | Append-only trace of plugin startup; distinguishes "never loaded" from "loaded and failed". |
 | `mcp-bridge-prompt.txt` | Last generated install prompt. |
+
 

@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>OpenUtau.Plugin.McpBridge.SmokeTest</AssemblyName>
     <RootNamespace>OpenUtau.Plugin.McpBridge.SmokeTest</RootNamespace>
+    <OpenUtauCoreDir>$([System.IO.Path]::GetDirectoryName('$(OpenUtauCorePath)'))</OpenUtauCoreDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,5 +17,18 @@
       <Private>true</Private>
     </Reference>
   </ItemGroup>
+
+  <!-- The host ships Core next to its own dependencies. Copy that directory into a
+       subfolder (never the output root: the host folder may also contain a bundled
+       runtime, which would shadow the SDK's) and resolve it from there at run time. -->
+  <ItemGroup>
+    <OpenUtauRuntimeDependency Include="$(OpenUtauCoreDir)\*.dll" Exclude="$(OpenUtauCorePath)" />
+  </ItemGroup>
+
+  <Target Name="CopyOpenUtauRuntimeDependencies" AfterTargets="Build">
+    <Copy SourceFiles="@(OpenUtauRuntimeDependency)"
+          DestinationFolder="$(OutDir)openutau"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>
