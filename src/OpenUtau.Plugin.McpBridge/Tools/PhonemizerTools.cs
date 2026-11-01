@@ -84,7 +84,7 @@ internal static class PhonemizerTools
             }
             list.Add(new JsonObject
             {
-                ["id"] = factory.Id,
+                ["id"] = FactoryId(factory),
                 ["tag"] = factory.tag,
                 ["name"] = factory.name,
                 ["language"] = factory.language ?? string.Empty,
@@ -122,7 +122,7 @@ internal static class PhonemizerTools
             {
                 ["dryRun"] = true,
                 ["trackNo"] = trackNo,
-                ["phonemizer"] = factory.Id,
+                ["phonemizer"] = FactoryId(factory),
                 ["tag"] = factory.tag,
                 ["name"] = factory.name,
             };
@@ -138,7 +138,7 @@ internal static class PhonemizerTools
             DocManager.Inst.EndUndoGroup();
         }
 
-        if (!string.Equals(track.Phonemizer.Id, factory.Id, StringComparison.Ordinal))
+        if (track.Phonemizer.GetType() != factory.type)
         {
             throw new BridgeException("write_verification_failed", "The track did not keep the requested phonemizer.");
         }
@@ -148,7 +148,7 @@ internal static class PhonemizerTools
             ["dryRun"] = false,
             ["revision"] = Session.Revision,
             ["trackNo"] = trackNo,
-            ["phonemizer"] = track.Phonemizer.Id,
+            ["phonemizer"] = PhonemizerId(track.Phonemizer),
             ["tag"] = track.Phonemizer.Tag,
             ["name"] = track.Phonemizer.Name,
             ["language"] = track.Phonemizer.Language ?? string.Empty,
@@ -160,7 +160,7 @@ internal static class PhonemizerTools
     {
         EnsureLoaded();
         var all = PhonemizerFactory.GetAll() ?? Array.Empty<PhonemizerFactory>();
-        return all.FirstOrDefault(f => string.Equals(f.Id, key, StringComparison.OrdinalIgnoreCase))
+        return all.FirstOrDefault(f => string.Equals(FactoryId(f), key, StringComparison.OrdinalIgnoreCase))
             ?? all.FirstOrDefault(f => string.Equals(f.tag, key, StringComparison.OrdinalIgnoreCase))
             ?? all.FirstOrDefault(f => string.Equals(f.name, key, StringComparison.OrdinalIgnoreCase))
             ?? PhonemizerFactory.Get(key);
@@ -171,7 +171,17 @@ internal static class PhonemizerTools
     /// decided how lyrics become phonemes yet.
     /// </summary>
     internal static bool IsDefault(Phonemizer phonemizer) =>
-        phonemizer == null || string.Equals(phonemizer.Id, typeof(DefaultPhonemizer).FullName, StringComparison.Ordinal);
+        phonemizer == null || phonemizer.GetType() == typeof(DefaultPhonemizer);
+
+    /// <summary>
+    /// The id a phonemizer is stored under. OpenUtau 0.1.577 added PhonemizerFactory.Id and
+    /// Phonemizer.Id; the type name is the same value and exists in every version.
+    /// </summary>
+    internal static string FactoryId(PhonemizerFactory factory) =>
+        factory.type?.FullName ?? factory.tag ?? string.Empty;
+
+    internal static string PhonemizerId(Phonemizer phonemizer) =>
+        phonemizer.GetType().FullName ?? phonemizer.Tag ?? string.Empty;
 
     private static void CheckRevision(JsonElement? args)
     {

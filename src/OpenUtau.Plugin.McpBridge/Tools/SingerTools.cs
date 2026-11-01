@@ -104,7 +104,7 @@ internal static class SingerTools
                 ["singerName"] = singer.Name,
                 ["singerType"] = singer.SingerType.ToString(),
                 ["renderer"] = renderFix?.renderer ?? track.RendererSettings.renderer ?? string.Empty,
-                ["phonemizer"] = followUp?.Id ?? track.Phonemizer?.Id ?? string.Empty,
+                ["phonemizer"] = followUp != null ? PhonemizerTools.FactoryId(followUp) : (track.Phonemizer != null ? PhonemizerTools.PhonemizerId(track.Phonemizer) : string.Empty),
             };
         }
 
@@ -141,7 +141,7 @@ internal static class SingerTools
             ["singerType"] = singer.SingerType.ToString(),
             ["renderer"] = track.RendererSettings.renderer ?? string.Empty,
             ["rendererSource"] = renderFix != null ? "singer type" : "unchanged",
-            ["phonemizer"] = track.Phonemizer?.Id ?? string.Empty,
+            ["phonemizer"] = track.Phonemizer != null ? PhonemizerTools.PhonemizerId(track.Phonemizer) : string.Empty,
             ["phonemizerSource"] = followUp != null ? "singer default" : "unchanged",
         };
     }
