@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 
 namespace OpenUtau.Plugin.McpBridge;
 
@@ -70,8 +70,8 @@ Do not rebuild the DLL from source: a self-built build usually targets the wrong
             StatusFile.AppendError("clipboard-unavailable", new InvalidOperationException(detail));
         }
         return copied
-            ? $"MCP bridge running at {BridgeController.Endpoint} 鈥?install prompt copied to clipboard."
-            : $"MCP bridge running at {BridgeController.Endpoint} 鈥?prompt saved to {path} (clipboard unavailable: {detail}).";
+            ? $"MCP bridge running at {BridgeController.Endpoint} - install prompt copied to clipboard."
+            : $"MCP bridge running at {BridgeController.Endpoint} - prompt saved to {path} (clipboard unavailable: {detail}).";
     }
 
     /// <summary>
@@ -99,12 +99,14 @@ Do not rebuild the DLL from source: a self-built build usually targets the wrong
             }
 
             var setText = Method(clipboard.GetType(), "SetTextAsync", typeof(string));
-            if (setText == null)
+            var result = setText != null
+                ? setText.Invoke(clipboard, new object[] { text })
+                : InvokeExtension(clipboard, text);
+            if (result == null)
             {
-                return (false, "IClipboard.SetTextAsync not found");
+                return (false, "no SetTextAsync on IClipboard or ClipboardExtensions");
             }
 
-            var result = setText.Invoke(clipboard, new object[] { text });
             if (result is Task task)
             {
                 var completed = PumpUntil(task, TimeSpan.FromSeconds(2));
@@ -180,6 +182,30 @@ Do not rebuild the DLL from source: a self-built build usually targets the wrong
             {
                 return property.GetValue(target);
             }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Avalonia 12 replaced the IClipboard text helpers with extension methods on
+    /// ClipBoardExtensions, so a missing instance method is not a failure by itself.
+    /// </summary>
+    private static object? InvokeExtension(object clipboard, string text)
+    {
+        var extensions = FindLoadedType("Avalonia.Input.Platform.ClipboardExtensions");
+        var candidates = extensions?.GetMethods(BindingFlags.Public | BindingFlags.Static) ?? Array.Empty<MethodInfo>();
+        foreach (var candidate in candidates)
+        {
+            var parameters = candidate.GetParameters();
+            if (candidate.Name != "SetTextAsync" || parameters.Length != 2 || parameters[1].ParameterType != typeof(string))
+            {
+                continue;
+            }
+            if (!parameters[0].ParameterType.IsInstanceOfType(clipboard))
+            {
+                continue;
+            }
+            return candidate.Invoke(null, new object[] { clipboard, text });
         }
         return null;
     }

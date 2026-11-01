@@ -1,4 +1,4 @@
-﻿# API contract
+# API contract
 
 Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau version).
 
@@ -26,7 +26,7 @@ Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau 
 
 | Tool | Kind | Capability |
 |---|---|---|
-| `openutau_status` | read | 鈥?|
+| `openutau_status` | read | - |
 | `openutau_read_snapshot` | read | notes |
 | `openutau_read_changes` | read | notes |
 | `openutau_list_parts` | read | notes |
@@ -72,7 +72,7 @@ Writes require `expectedRevision` (the host's `DocManager.Revision`), default to
 Reads that expose note content or a curve also return a `fingerprint` (24 hex chars).
 Writes that replace those fields accept `ifMatch`: when the content changed since the
 read, the call fails with `stale_write` and nothing is written. The fingerprint covers
-exactly the fields that write owns 鈥?an edit elsewhere in the project never invalidates
+exactly the fields that write owns; an edit elsewhere in the project never invalidates
 it.
 
 | Read | Fingerprint scope | Writes that accept it |
