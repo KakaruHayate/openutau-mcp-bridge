@@ -15,8 +15,8 @@ Install the OpenUtau MCP bridge on this machine.
    - Linux: ${XDG_DATA_HOME:-~/.local/share}/OpenUtau/Plugins
 
 2. Download OpenUtau.Plugin.McpBridge.dll from
-   https://github.com/KakaruHayate/openutau-mcp-bridge/releases/latest
-   (or a specific release tag) and copy it into that folder.
+   https://github.com/KakaruHayate/openutau-mcp-bridge/releases
+   (the newest release, or the exact tag you were given) and copy it into that folder.
    Do NOT build it from source: a self-built DLL usually targets a different .NET
    version than the installed application and will fail to load.
 
