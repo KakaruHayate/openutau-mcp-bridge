@@ -11,7 +11,7 @@ help, and reports whether the connection works.
 | Find OpenUtau and its real `Plugins` folder | yes |
 | Download the DLL and verify its checksum | yes |
 | Install / upgrade the DLL | yes (restart needs the user's OK if the app is open) |
-| Start the MCP endpoint | **no** — the plugin is instantiated only when a voice part is opened. One double-click is unavoidable today. |
+| Start the MCP endpoint | **no** - the plugin is instantiated only when a voice part is opened. One double-click is unavoidable today (a starter project is shipped so that click has a target). |
 | Poll for the endpoint, register it, verify 43 tools | yes |
 | Report a diagnostic bundle on failure | yes |
 
@@ -63,8 +63,13 @@ Facts you need:
    - Leave any OpenUtau.Plugin.McpBridge.*.txt or .json files alone; they are diagnostics.
 
 4. Bring it up
-   - Start OpenUtau again if it is not running.
-   - Ask the human, in one sentence: "open a voice part so the piano roll opens".
+   - If OpenUtau is not running, start it with the starter project from the release
+     (openutau-mcp-starter.ustx). That file has a single part, so there is something to
+     open:
+       OpenUtau.exe "/absolute/path/openutau-mcp-starter.ustx"
+   - If the human already has a project open, do not replace it; ask them to open one of
+     their own parts instead.
+   - Ask the human, in one sentence: "double-click the part so the piano roll opens".
    - Then wait up to 120 seconds, checking every 2 seconds:
        * if <Plugins>/OpenUtau.Plugin.McpBridge.boot.txt exists, its last line names the
          real endpoint
