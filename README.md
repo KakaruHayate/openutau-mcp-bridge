@@ -8,8 +8,9 @@ edit the project that is currently open.
   mechanism and adds its own entry under **Batch Edits 鈫?External**.
 - Loopback only (`127.0.0.1`), no telemetry, and it never saves your project.
 
-> **Status: M3.** Reads, note writes (dry run, undo groups, revision checks) and project
-> lifecycle (new/open/save/save-as) work. Export, singers and packages follow.
+> **Status: M5.** Reads, note writes, musical edits (pitch, vibrato, expressions, curves,
+> parts, tracks, phoneme offsets), project lifecycle and singer/renderer binding work.
+> Export and package tools follow.
 
 ## Install
 
@@ -45,5 +46,6 @@ See [docs/DEVELOPING.md](docs/DEVELOPING.md). The protocol and compatibility con
 is in [docs/API.md](docs/API.md).
 
 Licensed under the Mozilla Public License 2.0 (see [LICENSE](LICENSE)).
+
 
 

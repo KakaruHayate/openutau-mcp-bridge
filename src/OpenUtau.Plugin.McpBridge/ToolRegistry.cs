@@ -169,6 +169,167 @@ internal static class ToolRegistry
             WriteTools.HistoryState),
 
         new(
+            "openutau_set_pitch",
+            "Set note pitch",
+            "Replace one note's pitch points (or reset them to the default portamento). Points use the editor's units; the list is sorted by xMs.",
+            new[] { "pitch_points", "history" },
+            Schema(
+                P("partId", "string", "Part id.", true),
+                P("noteId", "string", "Note id.", true),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only."),
+                P("reset", "boolean", "Reset to the host's default pitch points instead of writing a list."),
+                P("snapFirst", "boolean", "Whether the first point stays glued to the previous note."),
+                PArr("points", "Pitch points; required unless reset is true.", Shape("io, l, …"))),
+            MusicTools.SetPitch),
+
+        new(
+            "openutau_set_vibrato",
+            "Set vibrato",
+            "Replace one note's vibrato. Omitted fields keep their current value; the host clamps each range.",
+            new[] { "vibrato", "history" },
+            Schema(
+                P("partId", "string", "Part id.", true),
+                P("noteId", "string", "Note id.", true),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only."),
+                P("length", "number", "Vibrato coverage, percent of the note."),
+                P("period", "number", "Milliseconds."),
+                P("depth", "number", "Cents."),
+                P("in", "number", "Fade-in, percent of the vibrato length."),
+                P("out", "number", "Fade-out, percent of the vibrato length."),
+                P("shift", "number", "Phase shift, percent of the period."),
+                P("drift", "number", "Up/down drift."),
+                P("volLink", "number", "Volume linkage, percent.")),
+            MusicTools.SetVibrato),
+
+        new(
+            "openutau_set_expression",
+            "Set expression",
+            "Set or clear one expression on every phoneme of the given notes. Use `value: null` to clear. Only descriptors listed by list_expressions are accepted.",
+            new[] { "expressions", "history" },
+            Schema(
+                P("partId", "string", "Part id.", true),
+                P("noteId", "string", "Single note id (alternative to noteIds)."),
+                PArr("noteIds", "Note ids to change.", new JsonObject { ["type"] = "string" }),
+                P("abbr", "string", "Expression abbreviation.", true),
+                P("value", "number", "Value inside the descriptor's range; null clears it."),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            MusicTools.SetExpression),
+
+        new(
+            "openutau_write_curve",
+            "Write curve",
+            "Replace or clear one expression curve of a part. Ticks must sit on the host's 5-tick grid; values are clamped into the descriptor's range.",
+            new[] { "curves", "history" },
+            Schema(
+                P("partId", "string", "Part id.", true),
+                P("abbr", "string", "Curve abbreviation.", true),
+                P("mode", "string", "replace (default) or clear."),
+                PArr("points", "Points for replace mode.", new JsonObject
+                {
+                    ["type"] = "object",
+                    ["properties"] = new JsonObject
+                    {
+                        ["tick"] = new JsonObject { ["type"] = "integer" },
+                        ["value"] = new JsonObject { ["type"] = "integer" },
+                    },
+                    ["required"] = new JsonArray { "tick", "value" },
+                }),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            MusicTools.WriteCurve),
+
+        new(
+            "openutau_edit_part",
+            "Edit part",
+            "Change a voice part's name, position or duration. Duration cannot cross the host's minimum-length boundary.",
+            new[] { "part_geometry", "history" },
+            Schema(
+                P("partId", "string", "Part id.", true),
+                P("name", "string", "New name."),
+                P("position", "integer", "New start tick."),
+                P("duration", "integer", "New duration in ticks."),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            MusicTools.EditPart),
+
+        new(
+            "openutau_edit_track",
+            "Edit track",
+            "Rename/recolor a track or change its mixer values. Name and color are undoable; volume/pan/mute/solo are plain host properties and are applied directly.",
+            new[] { "track_props", "history" },
+            Schema(
+                P("trackNo", "integer", "Track index.", true),
+                P("name", "string", "New name."),
+                P("color", "string", "Host color name."),
+                P("volume", "number", "dB."),
+                P("pan", "number", "Pan value."),
+                P("mute", "boolean", "Mute the track."),
+                P("solo", "boolean", "Solo the track."),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            MusicTools.EditTrack),
+
+        new(
+            "openutau_set_phoneme_override",
+            "Set phoneme override",
+            "Set one phoneme's alias or millisecond offset by index. Timing overrides (preutter/overlap/attack/release) need the rendered phoneme list and are not writable yet.",
+            new[] { "phoneme_override", "history" },
+            Schema(
+                P("partId", "string", "Part id.", true),
+                P("noteId", "string", "Note id.", true),
+                P("index", "integer", "0-based phoneme index.", true),
+                P("field", "string", "alias | offset", true),
+                P("value", "string", "Alias text, or an integer offset in milliseconds."),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            MusicTools.SetPhonemeOverride),
+
+        new(
+            "openutau_list_singers",
+            "List singers",
+            "Singers OpenUtau has installed, with type and load state.",
+            new[] { "singer_registry" },
+            Schema(),
+            SingerTools.ListSingers),
+
+        new(
+            "openutau_describe_singer",
+            "Describe singer",
+            "One singer's metadata plus the renderers it supports and the resamplers/wavtools installed for the classic backend.",
+            new[] { "singer_registry" },
+            Schema(P("singerId", "string", "Singer id or name.", true)),
+            SingerTools.DescribeSinger),
+
+        new(
+            "openutau_set_track_singer",
+            "Set track singer",
+            "Bind an installed singer to a track. Installed-only: the bridge cannot install voices.",
+            new[] { "singer_registry", "history" },
+            Schema(
+                P("trackNo", "integer", "Track index.", true),
+                P("singerId", "string", "Singer id or name.", true),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            SingerTools.SetTrackSinger),
+
+        new(
+            "openutau_set_track_renderer",
+            "Set track renderer",
+            "Choose the renderer (and, for the classic backend, the resampler and wavtool) a track uses.",
+            new[] { "singer_registry", "history" },
+            Schema(
+                P("trackNo", "integer", "Track index.", true),
+                P("renderer", "string", "Renderer id, e.g. CLASSIC or WORLDLINE-R."),
+                P("resampler", "string", "Resampler name (classic only)."),
+                P("wavtool", "string", "Wavtool name (classic only)."),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            SingerTools.SetTrackRenderer),
+
+        new(
             "openutau_project_info",
             "Project info",
             "Name, path, dirty flag, revision and size of the open project.",

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
@@ -283,7 +283,8 @@ internal static class ReadTools
             {
                 ["index"] = i,
                 ["name"] = track.TrackName,
-                ["singer"] = track.singer ?? string.Empty,
+                // UTrack.singer is only refreshed on save; Singer is what the session uses now.
+                ["singer"] = track.Singer?.Id ?? track.singer ?? string.Empty,
                 ["phonemizer"] = track.phonemizer ?? string.Empty,
                 ["mute"] = track.Mute,
                 ["solo"] = track.Solo,
@@ -400,6 +401,40 @@ internal static class ReadTools
             ["volLink"] = Math.Round(vibrato.volLink, 2),
         };
         item["phonemizerOverride"] = note.PhonemizerOverride;
+
+        var expressions = new JsonArray();
+        foreach (var expression in note.phonemeExpressions)
+        {
+            expressions.Add(new JsonObject
+            {
+                ["abbr"] = expression.abbr,
+                ["index"] = expression.index,
+                ["value"] = Math.Round(expression.value, 4),
+            });
+        }
+        item["expressions"] = expressions;
+
+        var overrides = new JsonArray();
+        foreach (var entry in note.phonemeOverrides)
+        {
+            if (entry.IsEmpty)
+            {
+                continue;
+            }
+            overrides.Add(new JsonObject
+            {
+                ["index"] = entry.index,
+                ["phoneme"] = entry.phoneme,
+                ["offset"] = entry.offset,
+                ["preutterDelta"] = entry.preutterDelta,
+                ["overlapDelta"] = entry.overlapDelta,
+                ["attackTimeDelta"] = entry.attackTimeDelta,
+                ["releaseTimeDelta"] = entry.releaseTimeDelta,
+            });
+        }
+        item["phonemeOverrides"] = overrides;
         return item;
     }
 }
+
+

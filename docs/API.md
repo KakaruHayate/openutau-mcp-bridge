@@ -39,6 +39,15 @@ Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau 
 | `openutau_edit_notes` | write | notes + history |
 | `openutau_delete_notes` | write | notes + history |
 | `openutau_undo` / `openutau_redo` / `openutau_history_state` | write/read | history |
+| `openutau_set_pitch` | write | pitch_points + history |
+| `openutau_set_vibrato` | write | vibrato + history |
+| `openutau_set_expression` | write | expressions + history |
+| `openutau_write_curve` | write | curves + history |
+| `openutau_edit_part` | write | part_geometry + history |
+| `openutau_edit_track` | write | track_props + history |
+| `openutau_set_phoneme_override` | write | phoneme_override + history |
+| `openutau_list_singers` / `openutau_describe_singer` | read | singer_registry |
+| `openutau_set_track_singer` / `openutau_set_track_renderer` | write | singer_registry + history |
 | `openutau_project_info` | read | project_lifecycle |
 | `openutau_project_new` | write | project_lifecycle |
 | `openutau_project_open` | write | project_lifecycle |
@@ -122,5 +131,6 @@ degrades the surface instead of breaking calls.
 | `OpenUtau.Plugin.McpBridge.status.json` | Same facts as `openutau_status`, readable when the endpoint is down. |
 | `OpenUtau.Plugin.McpBridge.boot.txt` | Append-only trace of plugin startup; distinguishes "never loaded" from "loaded and failed". |
 | `mcp-bridge-prompt.txt` | Last generated install prompt. |
+
 
 

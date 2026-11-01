@@ -97,7 +97,9 @@ foreach (var expected in new[]
     "openutau_read_notes", "openutau_read_pitch", "openutau_list_expressions", "openutau_list_curves",
     "openutau_read_curve", "openutau_add_notes", "openutau_edit_notes", "openutau_delete_notes",
     "openutau_undo", "openutau_redo", "openutau_history_state",
-    "openutau_project_info", "openutau_project_new", "openutau_project_open",
+    "openutau_list_singers", "openutau_describe_singer", "openutau_set_track_singer",
+    "openutau_set_track_renderer", "openutau_project_info", "openutau_project_new",
+    "openutau_project_open",
     "openutau_project_save", "openutau_project_save_as",
 })
 {
@@ -271,6 +273,211 @@ var missingRevision = await ToolAsync("openutau_delete_notes", new JsonObject
 });
 Check(missingRevision["error"]?.GetValue<string>() == "invalid_request", "missing expectedRevision rejected");
 
+// ---- musical edits -------------------------------------------------------------
+
+var current = await ToolAsync("openutau_read_notes", new JsonObject { ["partId"] = partId, ["detail"] = "full" });
+var targetId = current["notes"]![1]!["id"]!.GetValue<string>();
+var revMusic = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
+
+var pitchSet = await ToolAsync("openutau_set_pitch", new JsonObject
+{
+    ["partId"] = partId,
+    ["noteId"] = targetId,
+    ["expectedRevision"] = revMusic,
+    ["dryRun"] = false,
+    ["points"] = new JsonArray
+    {
+        new JsonObject { ["xMs"] = 0, ["y"] = 0, ["shape"] = "io" },
+        new JsonObject { ["xMs"] = 100, ["y"] = 20, ["shape"] = "l" },
+        new JsonObject { ["xMs"] = 240, ["y"] = 0, ["shape"] = "io" },
+    },
+});
+Check(pitchSet["__isError"] == null, "set_pitch committed");
+if (pitchSet["__isError"] != null)
+{
+    Console.WriteLine("set_pitch error: " + pitchSet.ToJsonString());
+}
+var pitchRead = await ToolAsync("openutau_read_pitch", new JsonObject { ["partId"] = partId, ["noteId"] = targetId });
+Check(pitchRead["points"]!.AsArray().Count == 3, "set_pitch wrote three points");
+Check(pitchRead["points"]![1]!["y"]!.GetValue<double>() == 20, "second pitch point y");
+
+var pitchReset = await ToolAsync("openutau_set_pitch", new JsonObject
+{
+    ["partId"] = partId,
+    ["noteId"] = targetId,
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+    ["reset"] = true,
+});
+Check(pitchReset["__isError"] == null, "set_pitch reset committed");
+
+var revVibrato = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
+var vibratoSet = await ToolAsync("openutau_set_vibrato", new JsonObject
+{
+    ["partId"] = partId,
+    ["noteId"] = targetId,
+    ["expectedRevision"] = revVibrato,
+    ["dryRun"] = false,
+    ["depth"] = 40,
+    ["period"] = 200,
+    ["length"] = 50,
+});
+Check(vibratoSet["__isError"] == null, "set_vibrato committed");
+var afterVibrato = await ToolAsync("openutau_read_notes", new JsonObject { ["partId"] = partId, ["detail"] = "full" });
+var vibratoNote = afterVibrato["notes"]!.AsArray().First(n => n!["id"]!.GetValue<string>() == targetId)!;
+Check(Math.Abs(vibratoNote["vibrato"]!["depth"]!.GetValue<double>() - 40) < 0.01, "vibrato depth applied");
+Check(Math.Abs(vibratoNote["vibrato"]!["period"]!.GetValue<double>() - 200) < 0.01, "vibrato period applied");
+
+var revExpression = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
+var expressionSet = await ToolAsync("openutau_set_expression", new JsonObject
+{
+    ["partId"] = partId,
+    ["noteIds"] = new JsonArray { targetId },
+    ["abbr"] = "vel",
+    ["value"] = 150,
+    ["expectedRevision"] = revExpression,
+    ["dryRun"] = false,
+});
+Check(expressionSet["__isError"] == null, "set_expression committed");
+if (expressionSet["__isError"] != null)
+{
+    Console.WriteLine("set_expression error: " + expressionSet.ToJsonString());
+}
+var afterExpression = await ToolAsync("openutau_read_notes", new JsonObject { ["partId"] = partId, ["detail"] = "full" });
+var expressionNote = afterExpression["notes"]!.AsArray().First(n => n!["id"]!.GetValue<string>() == targetId)!;
+Check(expressionNote["expressions"]!.AsArray().Any(e => e!["abbr"]!.GetValue<string>() == "vel"
+    && Math.Abs(e["value"]!.GetValue<double>() - 150) < 0.01), "expression applied");
+
+var revCurve = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
+var curveSet = await ToolAsync("openutau_write_curve", new JsonObject
+{
+    ["partId"] = partId,
+    ["abbr"] = "dyn",
+    ["expectedRevision"] = revCurve,
+    ["dryRun"] = false,
+    ["points"] = new JsonArray
+    {
+        new JsonObject { ["tick"] = 0, ["value"] = 0 },
+        new JsonObject { ["tick"] = 480, ["value"] = 20 },
+        new JsonObject { ["tick"] = 960, ["value"] = 0 },
+    },
+});
+Check(curveSet["__isError"] == null, "write_curve committed");
+if (curveSet["__isError"] != null)
+{
+    Console.WriteLine("write_curve error: " + curveSet.ToJsonString());
+}
+var curveRead = await ToolAsync("openutau_read_curve", new JsonObject { ["partId"] = partId, ["abbr"] = "dyn" });
+Check(curveRead["total"]!.GetValue<int>() == 3, "write_curve wrote three points");
+Check(curveRead["points"]![1]!["value"]!.GetValue<int>() == 20, "curve value at 480");
+
+var revPart = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
+var partEdited = await ToolAsync("openutau_edit_part", new JsonObject
+{
+    ["partId"] = partId,
+    ["expectedRevision"] = revPart,
+    ["dryRun"] = false,
+    ["name"] = "Verse",
+    ["position"] = 240,
+    ["duration"] = 2400,
+});
+Check(partEdited["__isError"] == null, "edit_part committed");
+if (partEdited["__isError"] != null)
+{
+    Console.WriteLine("edit_part error: " + partEdited.ToJsonString());
+}
+var afterPart = await ToolAsync("openutau_read_snapshot");
+var partNow = afterPart["parts"]![0]!;
+Check(partNow["name"]!.GetValue<string>() == "Verse", "part renamed");
+Check(partNow["position"]!.GetValue<int>() == 240, "part moved");
+Check(partNow["duration"]!.GetValue<int>() == 2400, "part resized");
+
+var revTrack = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
+var trackEdited = await ToolAsync("openutau_edit_track", new JsonObject
+{
+    ["trackNo"] = 0,
+    ["expectedRevision"] = revTrack,
+    ["dryRun"] = false,
+    ["name"] = "Lead",
+    ["color"] = "Red",
+    ["volume"] = -3.0,
+});
+Check(trackEdited["__isError"] == null, "edit_track committed");
+var afterTrack = await ToolAsync("openutau_read_snapshot");
+var trackNow = afterTrack["tracks"]![0]!;
+Check(trackNow["name"]!.GetValue<string>() == "Lead", "track renamed");
+Check(Math.Abs(trackNow["volume"]!.GetValue<double>() - (-3.0)) < 0.01, "track volume applied");
+
+var revPhoneme = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
+var overrideSet = await ToolAsync("openutau_set_phoneme_override", new JsonObject
+{
+    ["partId"] = partId,
+    ["noteId"] = targetId,
+    ["index"] = 0,
+    ["field"] = "offset",
+    ["value"] = 30,
+    ["expectedRevision"] = revPhoneme,
+    ["dryRun"] = false,
+});
+Check(overrideSet["__isError"] == null, "set_phoneme_override committed");
+if (overrideSet["__isError"] != null)
+{
+    Console.WriteLine("set_phoneme_override error: " + overrideSet.ToJsonString());
+}
+var afterOverride = await ToolAsync("openutau_read_notes", new JsonObject { ["partId"] = partId, ["detail"] = "full" });
+var overrideNote = afterOverride["notes"]!.AsArray().First(n => n!["id"]!.GetValue<string>() == targetId)!;
+Check(overrideNote["phonemeOverrides"]!.AsArray().Any(o => o!["offset"]?.GetValue<int>() == 30), "phoneme offset applied");
+
+var unsupported = await ToolAsync("openutau_set_phoneme_override", new JsonObject
+{
+    ["partId"] = partId,
+    ["noteId"] = targetId,
+    ["index"] = 0,
+    ["field"] = "preutterDelta",
+    ["value"] = 10,
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+});
+Check(unsupported["error"]?.GetValue<string>() == "unsupported_feature", "timing override reports unsupported_feature");
+// ---- singers ------------------------------------------------------------------
+
+var fakeSinger = new FakeSinger();
+SingerManager.Inst.Singers["smoke-singer"] = fakeSinger;
+
+var singers = await ToolAsync("openutau_list_singers");
+Check(singers["singers"]!.AsArray().Any(s => s!["name"]!.GetValue<string>() == "SmokeSinger"), "list_singers shows the test singer");
+
+var described = await ToolAsync("openutau_describe_singer", new JsonObject { ["singerId"] = "SmokeSinger" });
+Check(described["__isError"] == null, "describe_singer ran");
+if (described["__isError"] != null)
+{
+    Console.WriteLine("describe_singer error: " + described.ToJsonString());
+}
+else
+{
+    Check(described["renderers"]!.AsArray().Count >= 1, "describe_singer lists renderers");
+}
+
+// Binding a singer needs a fully loaded voicebank and an initialized renderer registry,
+// neither of which exists in a headless harness; the error paths are covered here and
+// the happy path is exercised against a real host.
+var unknownSinger = await ToolAsync("openutau_set_track_singer", new JsonObject
+{
+    ["trackNo"] = 0,
+    ["singerId"] = "no-such-singer",
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+});
+Check(unknownSinger["error"]?.GetValue<string>() == "invalid_request", "unknown singer rejected");
+
+var noSingerRenderer = await ToolAsync("openutau_set_track_renderer", new JsonObject
+{
+    ["trackNo"] = 0,
+    ["renderer"] = "CLASSIC",
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = true,
+});
+Check(noSingerRenderer["error"]?.GetValue<string>() == "invalid_request", "renderer binding needs a singer first");
 // ---- project lifecycle ---------------------------------------------------------
 
 var info = await ToolAsync("openutau_project_info");
@@ -398,6 +605,20 @@ static void InstallProject(UProject project, Dispatcher dispatcher)
     DocManager.Inst.PostOnUIThread = dispatcher.Post;
 }
 
+/// <summary>A classic singer that reports itself installed, so binding can be exercised without a voicebank.</summary>
+internal sealed class FakeSinger : USinger
+{
+    public FakeSinger()
+    {
+        found = true;
+        loaded = true;
+    }
+
+    public override string Id => "smoke-singer";
+    public override string Name => "SmokeSinger";
+    public override USingerType SingerType => USingerType.Classic;
+}
+
 /// <summary>A single thread that drains a queue, standing in for the editor's UI thread.</summary>
 internal sealed class Dispatcher : IDisposable
 {
@@ -428,6 +649,12 @@ internal sealed class Dispatcher : IDisposable
         Thread.Join(TimeSpan.FromSeconds(2));
     }
 }
+
+
+
+
+
+
 
 
 
