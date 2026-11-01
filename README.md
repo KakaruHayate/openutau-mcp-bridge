@@ -1,15 +1,16 @@
-# openutau-mcp-bridge
+﻿# openutau-mcp-bridge
 
 An MCP server that runs **inside** OpenUtau as a plugin DLL, so an AI agent can read and
 edit the project that is currently open.
 
 - One managed DLL, no native code: Windows, macOS and Linux use the same file.
 - No changes to OpenUtau: the plugin is discovered through the external `BatchEdit`
-  mechanism and adds its own entry under **Batch Edits → External**.
+  mechanism and adds its own entry under **Batch Edits 鈫?External**.
 - Loopback only (`127.0.0.1`), no telemetry, and it never saves your project.
 
-> **Status: M0 scaffold.** Only `openutau_status` exists today. The editing, project,
-> export and package tools land in the milestones described in the project plan.
+> **Status: M2.** Reads (snapshot, notes, pitch, curves, expressions, change feed) and
+> note writes (add/edit/delete, dry run, undo/redo) work. Project lifecycle, export and
+> package tools follow.
 
 ## Install
 
@@ -18,7 +19,7 @@ edit the project that is currently open.
    Windows installer, `~/Library/OpenUtau` on macOS, and
    `${XDG_DATA_HOME:-~/.local/share}/OpenUtau` on Linux).
 2. Restart OpenUtau and open a voice part (the bridge starts on first use).
-3. Run **Batch Edits → External → MCP Bridge: Copy agent prompt** and paste the copied
+3. Run **Batch Edits 鈫?External 鈫?MCP Bridge: Copy agent prompt** and paste the copied
    text into your agent.
 
 The endpoint is `http://127.0.0.1:43102/mcp`; the port moves to the next free one when
@@ -45,3 +46,4 @@ See [docs/DEVELOPING.md](docs/DEVELOPING.md). The protocol and compatibility con
 is in [docs/API.md](docs/API.md).
 
 Licensed under the Mozilla Public License 2.0 (see [LICENSE](LICENSE)).
+

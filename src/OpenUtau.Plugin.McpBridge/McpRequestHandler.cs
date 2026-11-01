@@ -106,6 +106,9 @@ internal static class McpRequestHandler
         }
         catch (Exception e)
         {
+            // Keep the caller's view short, but leave the full failure next to the DLL:
+            // a tool that throws is a bug report waiting for a stack trace.
+            StatusFile.WriteFailure($"tool:{name}", e);
             return Result(id, ToolError("internal_error", e.Message));
         }
     }

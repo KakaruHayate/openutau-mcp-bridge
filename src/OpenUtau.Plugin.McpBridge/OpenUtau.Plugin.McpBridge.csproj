@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <AssemblyMetadata Include="OpenUtauBaseline" Value="$(OpenUtauBaseline)" />
+    <InternalsVisibleTo Include="OpenUtau.Plugin.McpBridge.SmokeTest" />
   </ItemGroup>
 
   <Target Name="RequireOpenUtauCorePath" BeforeTargets="ResolveReferences" Condition="'$(OpenUtauCorePath)' == ''">

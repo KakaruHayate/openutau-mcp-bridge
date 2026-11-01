@@ -50,6 +50,7 @@ internal static class StatusFile
                 ["stage"] = stage,
                 ["type"] = error.GetType().Name,
                 ["message"] = error.Message,
+                ["detail"] = error.ToString().Length > 4000 ? error.ToString()[..4000] : error.ToString(),
                 ["at"] = DateTimeOffset.UtcNow.ToString("O"),
             });
             while (Errors.Count > 20)

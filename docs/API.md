@@ -1,4 +1,4 @@
-# API contract
+﻿# API contract
 
 Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau version).
 
@@ -22,6 +22,27 @@ Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau 
 | `tools/list` | Only tools whose required capabilities probe as available. |
 | `tools/call` | Returns MCP content blocks; business failures arrive as `isError: true` with a JSON `{error, message}` payload. |
 
+## Tools
+
+| Tool | Kind | Capability |
+|---|---|---|
+| `openutau_status` | read | — |
+| `openutau_read_snapshot` | read | notes |
+| `openutau_read_changes` | read | notes |
+| `openutau_list_parts` | read | notes |
+| `openutau_read_notes` | read | notes |
+| `openutau_read_pitch` | read | pitch_points |
+| `openutau_list_expressions` | read | expressions |
+| `openutau_list_curves` | read | curves |
+| `openutau_read_curve` | read | curves |
+| `openutau_add_notes` | write | notes + history |
+| `openutau_edit_notes` | write | notes + history |
+| `openutau_delete_notes` | write | notes + history |
+| `openutau_undo` / `openutau_redo` / `openutau_history_state` | write/read | history |
+
+Writes require `expectedRevision` (the host's `DocManager.Revision`), default to
+`dryRun: true`, land in a single undo group, and are verified by reading the values back.
+
 ## `openutau_status`
 
 Always available. Shape:
@@ -29,12 +50,12 @@ Always available. Shape:
 ```json
 {
   "bridge": { "version": "0.1.0", "protocol": 1, "builtAgainst": "1.0.0.0", "target": "net10.0" },
-  "app": { "version": "1.0.0.0", "informational": "…", "core": "1.0.0.0", "runtime": "10.0.14", "os": "Win32NT" },
-  "compatibility": { "ok": true, "level": "partial|full|unsupported", "reasons": ["…"],
-    "capabilities": { "notes": "full", "pitch_points": "full", "…": "missing" } },
+  "app": { "version": "1.0.0.0", "informational": "鈥?, "core": "1.0.0.0", "runtime": "10.0.14", "os": "Win32NT" },
+  "compatibility": { "ok": true, "level": "partial|full|unsupported", "reasons": ["鈥?],
+    "capabilities": { "notes": "full", "pitch_points": "full", "鈥?: "missing" } },
   "tools": { "implemented": ["openutau_status"] },
-  "project": { "sessionId": "…", "revision": 42, "dirty": false, "path": "…" },
-  "server": { "endpoint": "http://127.0.0.1:43102/mcp", "port": 43102, "pid": 1234, "startedAt": "…" }
+  "project": { "sessionId": "鈥?, "revision": 42, "dirty": false, "path": "鈥? },
+  "server": { "endpoint": "http://127.0.0.1:43102/mcp", "port": 43102, "pid": 1234, "startedAt": "鈥? }
 }
 ```
 
@@ -75,7 +96,7 @@ degrades the surface instead of breaking calls.
 | `revision_conflict` | `expectedRevision` does not match the document revision. |
 | `stale_write` | An `ifMatch` fingerprint no longer matches. |
 | `unsupported_feature` | The running OpenUtau lacks the capability this call needs. |
-| `missing_package` | A Core package (GAME, RMVPE, a vocoder, …) is required but absent. |
+| `missing_package` | A Core package (GAME, RMVPE, a vocoder, 鈥? is required but absent. |
 | `user_busy` | The UI thread could not service the call in time. |
 | `write_verification_failed` | The write landed but read-back disagrees. |
 | `path_not_allowed` | Path outside the configured access roots. |
@@ -93,3 +114,4 @@ degrades the surface instead of breaking calls.
 | `OpenUtau.Plugin.McpBridge.status.json` | Same facts as `openutau_status`, readable when the endpoint is down. |
 | `OpenUtau.Plugin.McpBridge.boot.txt` | Append-only trace of plugin startup; distinguishes "never loaded" from "loaded and failed". |
 | `mcp-bridge-prompt.txt` | Last generated install prompt. |
+
