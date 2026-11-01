@@ -68,6 +68,21 @@ async Task<JsonNode> ToolAsync(string name, JsonObject? arguments = null)
     return payload;
 }
 
+async Task<JsonNode> WaitForJob(string jobId, int seconds = 20)
+{
+    for (var i = 0; i < seconds * 10; i++)
+    {
+        var job = await ToolAsync("openutau_job_get", new JsonObject { ["jobId"] = jobId });
+        var state = job["state"]?.GetValue<string>();
+        if (state is "succeeded" or "failed" or "cancelled")
+        {
+            return job;
+        }
+        await Task.Delay(100);
+    }
+    throw new Exception("job did not finish in time");
+}
+
 void Check(bool condition, string message)
 {
     if (!condition)
@@ -97,8 +112,15 @@ foreach (var expected in new[]
     "openutau_read_notes", "openutau_read_pitch", "openutau_list_expressions", "openutau_list_curves",
     "openutau_read_curve", "openutau_add_notes", "openutau_edit_notes", "openutau_delete_notes",
     "openutau_undo", "openutau_redo", "openutau_history_state",
+    "openutau_set_pitch", "openutau_set_vibrato", "openutau_set_expression",
+    "openutau_write_curve", "openutau_edit_part", "openutau_edit_track",
+    "openutau_set_phoneme_override",
     "openutau_list_singers", "openutau_describe_singer", "openutau_set_track_singer",
-    "openutau_set_track_renderer", "openutau_project_info", "openutau_project_new",
+    "openutau_set_track_renderer", "openutau_export_capabilities", "openutau_export_audio",
+    "openutau_job_get", "openutau_job_list", "openutau_job_cancel",
+    "openutau_packages_list", "openutau_packages_search", "openutau_packages_install",
+    "openutau_packages_uninstall", "openutau_packages_refresh",
+    "openutau_project_info", "openutau_project_new",
     "openutau_project_open",
     "openutau_project_save", "openutau_project_save_as",
 })
@@ -478,6 +500,94 @@ var noSingerRenderer = await ToolAsync("openutau_set_track_renderer", new JsonOb
     ["dryRun"] = true,
 });
 Check(noSingerRenderer["error"]?.GetValue<string>() == "invalid_request", "renderer binding needs a singer first");
+// ---- export and jobs -----------------------------------------------------------
+
+var capabilities = await ToolAsync("openutau_export_capabilities");
+Check(capabilities["formats"]!.AsArray().Any(f => f!.GetValue<string>() == "wav"), "export capabilities list wav");
+Check(capabilities["canExport"]!.GetValue<bool>() == false, "export blocked without a singer");
+Check(capabilities["reasons"]!.AsArray().Count >= 1, "export capabilities explain why");
+
+var exportPath = Path.Combine(Path.GetTempPath(), "openutau-mcp-bridge-smoke", "mix.wav");
+Directory.CreateDirectory(Path.GetDirectoryName(exportPath)!);
+if (File.Exists(exportPath))
+{
+    File.Delete(exportPath);
+}
+
+var export = await ToolAsync("openutau_export_audio", new JsonObject
+{
+    ["mode"] = "mixdown",
+    ["path"] = exportPath,
+});
+Check(export["jobId"]?.GetValue<string>()?.Length == 32, "export_audio returned a job id");
+var exportJob = await WaitForJob(export["jobId"]!.GetValue<string>());
+Check(exportJob["state"]!.GetValue<string>() == "failed", "export without a singer fails the job");
+Check(exportJob["error"]!["code"]!.GetValue<string>() == "unsupported_feature", "export failure names the reason");
+Check(!File.Exists(exportPath), "failed export published nothing");
+
+var jobs = await ToolAsync("openutau_job_list", new JsonObject { ["limit"] = 5 });
+Check(jobs["jobs"]!.AsArray().Count >= 1, "job_list shows the export");
+Check(jobs["jobs"]![0]!["jobId"]!.GetValue<string>() == export["jobId"]!.GetValue<string>(), "job_list is newest first");
+
+var cancelFinished = await ToolAsync("openutau_job_cancel", new JsonObject { ["jobId"] = export["jobId"]!.GetValue<string>() });
+Check(cancelFinished["cancelRequested"]!.GetValue<bool>() == false, "a finished job cannot be cancelled");
+
+var unknownJob = await ToolAsync("openutau_job_get", new JsonObject { ["jobId"] = "nope" });
+Check(unknownJob["error"]?.GetValue<string>() == "invalid_request", "unknown job id rejected");
+
+File.WriteAllText(exportPath, "occupied");
+var refusedExport = await ToolAsync("openutau_export_audio", new JsonObject
+{
+    ["mode"] = "mixdown",
+    ["path"] = exportPath,
+});
+Check(refusedExport["error"]?.GetValue<string>() == "overwrite_refused", "export refuses to overwrite by default");
+File.Delete(exportPath);
+// ---- capability filtering ------------------------------------------------------
+
+var healthy = new Dictionary<string, string>
+{
+    ["notes"] = "full", ["pitch_points"] = "full", ["vibrato"] = "full",
+    ["phoneme_override"] = "full", ["expressions"] = "full", ["curves"] = "full",
+    ["part_geometry"] = "full", ["track_props"] = "full", ["history"] = "full",
+    ["project_lifecycle"] = "full", ["singer_registry"] = "full",
+    ["export_audio"] = "full", ["packages"] = "full",
+};
+var allNames = OpenUtau.Plugin.McpBridge.ToolRegistry.AvailableToolNames(healthy);
+Check(allNames.Count == names.Count, "every tool is available when all capabilities probe full");
+
+var brokenCurves = new Dictionary<string, string>(healthy) { ["curves"] = "missing" };
+var filtered = OpenUtau.Plugin.McpBridge.ToolRegistry.AvailableToolNames(brokenCurves);
+Check(!filtered.Contains("openutau_read_curve"), "curve tools disappear when the capability is missing");
+Check(filtered.Contains("openutau_read_notes"), "unrelated tools stay available");
+Check(filtered.Count == allNames.Count - 3, "exactly the curve tools are removed");
+
+var noHistory = new Dictionary<string, string>(healthy) { ["history"] = "missing" };
+var readOnly = OpenUtau.Plugin.McpBridge.ToolRegistry.AvailableToolNames(noHistory);
+Check(!readOnly.Contains("openutau_add_notes"), "writes disappear without history");
+Check(readOnly.Contains("openutau_status"), "status never depends on a capability");
+
+var filteredList = OpenUtau.Plugin.McpBridge.ToolRegistry.Describe(brokenCurves);
+Check(filteredList.AsArray().All(t => t!["name"]!.GetValue<string>() != "openutau_list_curves"), "tools/list respects the probe");
+// ---- packages ------------------------------------------------------------------
+
+var installedPackages = await ToolAsync("openutau_packages_list");
+Check(installedPackages["packages"] != null, "packages_list returns an array");
+Check(installedPackages["count"]!.GetValue<int>() == installedPackages["packages"]!.AsArray().Count, "packages_list count matches");
+
+var uninstallUnknown = await ToolAsync("openutau_packages_uninstall", new JsonObject { ["id"] = "nope", ["confirm"] = true });
+Check(uninstallUnknown["error"]?.GetValue<string>() == "invalid_request", "uninstalling an unknown package is rejected");
+
+var uninstallUnconfirmed = await ToolAsync("openutau_packages_uninstall", new JsonObject { ["id"] = "nope" });
+Check(uninstallUnconfirmed["error"]?.GetValue<string>() == "invalid_request", "uninstall needs confirm");
+
+var refreshed = await ToolAsync("openutau_packages_refresh");
+Check(refreshed["__isError"] == null, "packages_refresh ran");
+
+// The missing-package mapping is what makes GAME / RMVPE / vocoder gaps self-healing.
+var mapped = OpenUtau.Plugin.McpBridge.Errors.Map(new MissingPackageException("game", "rmvpe"));
+Check(mapped?.Code == "missing_package", "missing package maps to its own error code");
+Check(mapped?.Details?["packages"]?.AsArray().Count == 2, "missing package lists both ids");
 // ---- project lifecycle ---------------------------------------------------------
 
 var info = await ToolAsync("openutau_project_info");
@@ -649,6 +759,12 @@ internal sealed class Dispatcher : IDisposable
         Thread.Join(TimeSpan.FromSeconds(2));
     }
 }
+
+
+
+
+
+
 
 
 

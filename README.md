@@ -8,9 +8,10 @@ edit the project that is currently open.
   mechanism and adds its own entry under **Batch Edits 鈫?External**.
 - Loopback only (`127.0.0.1`), no telemetry, and it never saves your project.
 
-> **Status: M5.** Reads, note writes, musical edits (pitch, vibrato, expressions, curves,
-> parts, tracks, phoneme offsets), project lifecycle and singer/renderer binding work.
-> Export and package tools follow.
+> **Status: M8.** 41 tools: reads, note writes, musical edits, project lifecycle,
+> singer/renderer binding, export (mixdown and stems) with a job ledger, and package
+> management with missing-package self-healing. CI runs the smoke test on three
+> platforms against two OpenUtau revisions.
 
 ## Install
 
@@ -46,6 +47,7 @@ See [docs/DEVELOPING.md](docs/DEVELOPING.md). The protocol and compatibility con
 is in [docs/API.md](docs/API.md).
 
 Licensed under the Mozilla Public License 2.0 (see [LICENSE](LICENSE)).
+
 
 
 

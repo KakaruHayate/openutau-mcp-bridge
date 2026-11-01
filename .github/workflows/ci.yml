@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        openutau_ref: ["0.1.576", "master"]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out the bridge
+        uses: actions/checkout@v4
+
+      - name: Check out OpenUtau at ${{ matrix.openutau_ref }}
+        uses: actions/checkout@v4
+        with:
+          repository: openutau/OpenUtau
+          ref: ${{ matrix.openutau_ref }}
+          path: openutau
+
+      - name: Record the tested revision
+        shell: bash
+        run: echo "${{ matrix.openutau_ref }} at $(git -C openutau rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build OpenUtau.Core
+        shell: bash
+        run: >
+          dotnet build openutau/OpenUtau.Core/OpenUtau.Core.csproj
+          --configuration Release
+          -p:ImportDirectoryBuildProps=false
+          -p:CopyLocalLockFileAssemblies=true
+
+      - name: Locate the built Core assembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE=$(find openutau/OpenUtau.Core/bin/Release -name OpenUtau.Core.dll -not -path "*/ref/*" -not -path "*/obj/*" | head -n 1)
+          if [ -z "$CORE" ]; then
+            echo "OpenUtau.Core.dll was not produced" >&2
+            exit 1
+          fi
+          echo "CORE=$CORE" >> "$GITHUB_ENV"
+          echo "using $CORE"
+
+      - name: Build the bridge
+        shell: bash
+        run: >
+          dotnet build src/OpenUtau.Plugin.McpBridge/OpenUtau.Plugin.McpBridge.csproj
+          --configuration Release
+          -p:OpenUtauCorePath="$CORE"
+          -p:OpenUtauBaseline="${{ matrix.openutau_ref }}"
+
+      - name: Smoke test over HTTP
+        shell: bash
+        run: >
+          dotnet run --project tests/OpenUtau.Plugin.McpBridge.SmokeTest/OpenUtau.Plugin.McpBridge.SmokeTest.csproj
+          --configuration Release
+          -p:OpenUtauCorePath="$CORE"
+          -p:OpenUtauBaseline="${{ matrix.openutau_ref }}"

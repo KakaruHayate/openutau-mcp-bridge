@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using OpenUtau.Plugin.McpBridge.Tools;
 
@@ -180,7 +180,7 @@ internal static class ToolRegistry
                 P("dryRun", "boolean", "Default true: validate and preview only."),
                 P("reset", "boolean", "Reset to the host's default pitch points instead of writing a list."),
                 P("snapFirst", "boolean", "Whether the first point stays glued to the previous note."),
-                PArr("points", "Pitch points; required unless reset is true.", Shape("io, l, …"))),
+                PArr("points", "Pitch points; required unless reset is true.", Shape("Pitch point shape, e.g. io or l."))),
             MusicTools.SetPitch),
 
         new(
@@ -330,6 +330,93 @@ internal static class ToolRegistry
             SingerTools.SetTrackRenderer),
 
         new(
+            "openutau_export_capabilities",
+            "Export capabilities",
+            "What this project can export right now: formats, modes, estimated duration and anything blocking a render.",
+            new[] { "export_audio" },
+            Schema(),
+            ExportTools.Capabilities),
+
+        new(
+            "openutau_export_audio",
+            "Export audio",
+            "Render a mixdown or one file per track. Runs as a job: the file appears only after the render succeeded and was verified.",
+            new[] { "export_audio" },
+            Schema(
+                P("mode", "string", "mixdown (default) or stems.", true),
+                P("path", "string", "Absolute output path; for stems it names the file prefix.", true),
+                P("overwrite", "boolean", "Replace existing files."),
+                P("timeoutSec", "integer", "Render timeout, 5..1800 seconds (default 300)."),
+                P("allowIncomplete", "boolean", "Export even when OpenUtau flags notes as invalid.")),
+            ExportTools.ExportAudio),
+
+        new(
+            "openutau_job_get",
+            "Get job",
+            "State, result or error of one background job.",
+            new[] { "export_audio" },
+            Schema(P("jobId", "string", "Job id.", true)),
+            ExportTools.JobGet),
+
+        new(
+            "openutau_job_list",
+            "List jobs",
+            "Recent background jobs, newest first.",
+            new[] { "export_audio" },
+            Schema(P("limit", "integer", "Max jobs (default 10, cap 100).")),
+            ExportTools.JobList),
+
+        new(
+            "openutau_job_cancel",
+            "Cancel job",
+            "Ask a running job to stop. A cancelled export publishes nothing.",
+            new[] { "export_audio" },
+            Schema(P("jobId", "string", "Job id.", true)),
+            ExportTools.JobCancel),
+
+        new(
+            "openutau_packages_list",
+            "List packages",
+            "Dependency packages already installed (GAME, RMVPE, vocoders, themes).",
+            new[] { "packages" },
+            Schema(),
+            PackageTools.List),
+
+        new(
+            "openutau_packages_search",
+            "Search packages",
+            "Search OpenUtau's package registry. Runs as a job because it goes to the network.",
+            new[] { "packages" },
+            Schema(P("query", "string", "Substring of the id or localized name.")),
+            PackageTools.Search),
+
+        new(
+            "openutau_packages_install",
+            "Install package",
+            "Install a package from OpenUtau's registry by id. Runs as a job; only registry ids are accepted.",
+            new[] { "packages" },
+            Schema(P("id", "string", "Registry package id, e.g. game or rmvpe.", true)),
+            PackageTools.Install),
+
+        new(
+            "openutau_packages_uninstall",
+            "Uninstall package",
+            "Remove an installed dependency package. Requires confirm: true.",
+            new[] { "packages" },
+            Schema(
+                P("id", "string", "Package id.", true),
+                P("confirm", "boolean", "Must be true.", true)),
+            PackageTools.Uninstall),
+
+        new(
+            "openutau_packages_refresh",
+            "Refresh packages",
+            "Rescan singers, dependency packages and the resampler/wavtool folders.",
+            new[] { "packages" },
+            Schema(),
+            PackageTools.Refresh),
+
+        new(
             "openutau_project_info",
             "Project info",
             "Name, path, dirty flag, revision and size of the open project.",
@@ -421,12 +508,35 @@ internal static class ToolRegistry
 
     public static IReadOnlyList<string> ToolNames { get; } = Definitions.Select(d => d.Name).ToArray();
 
-    private static List<ToolDefinition> Available()
-    {
-        var probes = CapabilityProbe.Probe();
-        return Definitions
+    /// <summary>Tools whose required capabilities all probe as available.</summary>
+    internal static List<string> AvailableToolNames(IReadOnlyDictionary<string, string> probes) =>
+        Definitions
             .Where(d => d.Requires.All(c => probes.TryGetValue(c, out var level) && level == "full"))
+            .Select(d => d.Name)
             .ToList();
+
+    private static List<ToolDefinition> Available() => Available(CapabilityProbe.Probe());
+
+    private static List<ToolDefinition> Available(IReadOnlyDictionary<string, string> probes)
+    {
+        var names = AvailableToolNames(probes);
+        return Definitions.Where(d => names.Contains(d.Name)).ToList();
+    }
+
+    internal static JsonArray Describe(IReadOnlyDictionary<string, string> probes)
+    {
+        var array = new JsonArray();
+        foreach (var tool in Available(probes))
+        {
+            array.Add(new JsonObject
+            {
+                ["name"] = tool.Name,
+                ["title"] = tool.Title,
+                ["description"] = tool.Description,
+                ["inputSchema"] = tool.InputSchema.DeepClone(),
+            });
+        }
+        return array;
     }
 
     public static JsonArray Describe()
@@ -520,3 +630,4 @@ internal static class ToolRegistry
         return schema;
     }
 }
+

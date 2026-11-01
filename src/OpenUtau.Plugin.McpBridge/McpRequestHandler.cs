@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace OpenUtau.Plugin.McpBridge;
@@ -102,10 +102,15 @@ internal static class McpRequestHandler
         }
         catch (BridgeException e)
         {
-            return Result(id, ToolError(e.Code, e.Message));
+            return Result(id, ToolError(e.Code, e.Message, e.Details));
         }
         catch (Exception e)
         {
+            var mapped = Errors.Map(e);
+            if (mapped != null)
+            {
+                return Result(id, ToolError(mapped.Code, mapped.Message, mapped.Details));
+            }
             // Keep the caller's view short, but leave the full failure next to the DLL:
             // a tool that throws is a bug report waiting for a stack trace.
             StatusFile.WriteFailure($"tool:{name}", e);
@@ -113,18 +118,29 @@ internal static class McpRequestHandler
         }
     }
 
-    private static JsonObject ToolError(string code, string message) => new()
+    private static JsonObject ToolError(string code, string message, JsonObject? details = null)
     {
-        ["content"] = new JsonArray
+        var payload = new JsonObject { ["error"] = code, ["message"] = message };
+        if (details != null)
         {
-            new JsonObject
+            foreach (var pair in details)
             {
-                ["type"] = "text",
-                ["text"] = JsonSerializer.Serialize(new JsonObject { ["error"] = code, ["message"] = message }, JsonOptions),
+                payload[pair.Key] = pair.Value?.DeepClone();
+            }
+        }
+        return new JsonObject
+        {
+            ["content"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["type"] = "text",
+                    ["text"] = JsonSerializer.Serialize(payload, JsonOptions),
+                },
             },
-        },
-        ["isError"] = true,
-    };
+            ["isError"] = true,
+        };
+    }
 
     private static string Result(JsonNode? id, JsonNode result) => new JsonObject
     {
@@ -145,8 +161,14 @@ internal sealed class BridgeException : Exception
 {
     public string Code { get; }
 
-    public BridgeException(string code, string message) : base(message)
+    /// <summary>Optional structured payload merged into the error result.</summary>
+    public System.Text.Json.Nodes.JsonObject? Details { get; }
+
+    public BridgeException(string code, string message, System.Text.Json.Nodes.JsonObject? details = null) : base(message)
     {
         Code = code;
+        Details = details;
     }
 }
+
+

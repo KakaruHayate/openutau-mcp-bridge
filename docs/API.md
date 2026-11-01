@@ -48,6 +48,13 @@ Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau 
 | `openutau_set_phoneme_override` | write | phoneme_override + history |
 | `openutau_list_singers` / `openutau_describe_singer` | read | singer_registry |
 | `openutau_set_track_singer` / `openutau_set_track_renderer` | write | singer_registry + history |
+| `openutau_export_capabilities` | read | export_audio |
+| `openutau_export_audio` / `openutau_job_get` / `openutau_job_list` / `openutau_job_cancel` | write/read | export_audio |
+| `openutau_packages_list` / `openutau_packages_search` | read | packages |
+| `openutau_packages_install` / `openutau_packages_uninstall` / `openutau_packages_refresh` | write | packages |
+
+Exports and registry lookups run as jobs: the call returns a `jobId`, the product is read
+from the path the job wrote, and a failed or cancelled export publishes nothing.
 | `openutau_project_info` | read | project_lifecycle |
 | `openutau_project_new` | write | project_lifecycle |
 | `openutau_project_open` | write | project_lifecycle |
@@ -131,6 +138,7 @@ degrades the surface instead of breaking calls.
 | `OpenUtau.Plugin.McpBridge.status.json` | Same facts as `openutau_status`, readable when the endpoint is down. |
 | `OpenUtau.Plugin.McpBridge.boot.txt` | Append-only trace of plugin startup; distinguishes "never loaded" from "loaded and failed". |
 | `mcp-bridge-prompt.txt` | Last generated install prompt. |
+
 
 
 
