@@ -47,6 +47,8 @@ Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau 
 | `openutau_edit_track` | write | track_props + history |
 | `openutau_set_phoneme_override` | write | phoneme_override + history |
 | `openutau_list_singers` / `openutau_describe_singer` | read | singer_registry |
+| `openutau_list_phonemizers` | read | singer_registry |
+| `openutau_set_track_phonemizer` | write | singer_registry + history |
 | `openutau_set_track_singer` / `openutau_set_track_renderer` | write | singer_registry + history |
 | `openutau_export_capabilities` | read | export_audio |
 | `openutau_export_audio` / `openutau_job_get` / `openutau_job_list` / `openutau_job_cancel` | write/read | export_audio |

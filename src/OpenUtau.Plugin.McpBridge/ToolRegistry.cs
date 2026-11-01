@@ -422,6 +422,26 @@ internal static class ToolRegistry
             PackageTools.Refresh),
 
         new(
+            "openutau_list_phonemizers",
+            "List phonemizers",
+            "Installed phonemizers. A track on the pass-through default sends lyrics to the singer verbatim, which fails for anything but plain phonemes.",
+            new[] { "singer_registry" },
+            Schema(P("language", "string", "Filter by language code, e.g. ZH.")),
+            PhonemizerTools.List),
+
+        new(
+            "openutau_set_track_phonemizer",
+            "Set track phonemizer",
+            "Choose how lyrics on a track become phonemes. Accepts an id, a tag (DIFFS ZH) or a display name.",
+            new[] { "singer_registry", "history" },
+            Schema(
+                P("trackNo", "integer", "Track index.", true),
+                P("phonemizer", "string", "Phonemizer id, tag or name.", true),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            PhonemizerTools.SetTrackPhonemizer),
+
+        new(
             "openutau_add_track",
             "Add track",
             "Append a track (at `index` when given). A project starts with one track; more than one voice needs this.",

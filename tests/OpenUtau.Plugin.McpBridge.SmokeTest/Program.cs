@@ -120,6 +120,7 @@ foreach (var expected in new[]
     "openutau_job_get", "openutau_job_list", "openutau_job_cancel",
     "openutau_packages_list", "openutau_packages_search", "openutau_packages_install",
     "openutau_packages_uninstall", "openutau_packages_refresh",
+    "openutau_list_phonemizers", "openutau_set_track_phonemizer",
     "openutau_add_track", "openutau_remove_track",
     "openutau_add_part", "openutau_remove_part",
     "openutau_project_info", "openutau_project_new",
@@ -137,7 +138,7 @@ foreach (var tool in tools)
 // ---- status --------------------------------------------------------------------
 
 var status = await ToolAsync("openutau_status");
-Check(status["bridge"]?["protocol"]?.GetValue<int>() == 3, "status protocol");
+Check(status["bridge"]?["protocol"]?.GetValue<int>() == 4, "status protocol");
 Check(status["project"]?["sessionId"]?.GetValue<string>()?.Length == 32, "status session id");
 
 // ---- snapshot ------------------------------------------------------------------
@@ -548,6 +549,15 @@ var unknownSinger = await ToolAsync("openutau_set_track_singer", new JsonObject
     ["dryRun"] = false,
 });
 Check(unknownSinger["error"]?.GetValue<string>() == "invalid_request", "unknown singer rejected");
+var singerDryRun = await ToolAsync("openutau_set_track_singer", new JsonObject
+{
+    ["trackNo"] = 0,
+    ["singerId"] = "SmokeSinger",
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = true,
+});
+Check(singerDryRun["__isError"] == null, "set_track_singer dry run works");
+Check(!string.IsNullOrEmpty(singerDryRun["renderer"]?.GetValue<string>()), "dry run reports the renderer it would apply");
 
 var noSingerRenderer = await ToolAsync("openutau_set_track_renderer", new JsonObject
 {
@@ -559,6 +569,47 @@ var noSingerRenderer = await ToolAsync("openutau_set_track_renderer", new JsonOb
 Check(noSingerRenderer["error"]?.GetValue<string>() == "invalid_request", "renderer binding needs a singer first");
 // ---- parts ---------------------------------------------------------------------
 
+// ---- phonemizers ---------------------------------------------------------------
+
+var phonemizers = await ToolAsync("openutau_list_phonemizers");
+Check(phonemizers["phonemizers"] != null, "list_phonemizers returns an array");
+var phonemizerCount = phonemizers["count"]!.GetValue<int>();
+Console.WriteLine($"     phonemizers registered: {phonemizerCount}");
+if (phonemizerCount > 0)
+{
+    var first = phonemizers["phonemizers"]![0]!;
+    var setPhonemizer = await ToolAsync("openutau_set_track_phonemizer", new JsonObject
+    {
+        ["trackNo"] = 0,
+        ["phonemizer"] = first["tag"]!.GetValue<string>(),
+        ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+        ["dryRun"] = false,
+    });
+    Check(setPhonemizer["__isError"] == null, "set_track_phonemizer committed by tag");
+    if (setPhonemizer["__isError"] != null)
+    {
+        Console.WriteLine("set_track_phonemizer error: " + setPhonemizer.ToJsonString());
+    }
+
+    // Leave the track on the pass-through default: the lyric warning test below needs it.
+    var backToDefault = await ToolAsync("openutau_set_track_phonemizer", new JsonObject
+    {
+        ["trackNo"] = 0,
+        ["phonemizer"] = "Select Phonemizer",
+        ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+        ["dryRun"] = false,
+    });
+    Check(backToDefault["__isError"] == null, "set_track_phonemizer accepts the default tag");
+}
+
+var unknownPhonemizer = await ToolAsync("openutau_set_track_phonemizer", new JsonObject
+{
+    ["trackNo"] = 0,
+    ["phonemizer"] = "no-such-phonemizer",
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = true,
+});
+Check(unknownPhonemizer["error"]?.GetValue<string>() == "invalid_request", "unknown phonemizer rejected");
 // ---- tracks --------------------------------------------------------------------
 
 var tracksBefore = (await ToolAsync("openutau_read_snapshot"))["tracks"]!.AsArray().Count;
@@ -621,6 +672,16 @@ var partNotes = await ToolAsync("openutau_add_notes", new JsonObject
     ["notes"] = new JsonArray { new JsonObject { ["position"] = 0, ["duration"] = 480, ["tone"] = 60 } },
 });
 Check(partNotes["__isError"] == null, "notes can be added to a new part");
+
+var cjkNotes = await ToolAsync("openutau_add_notes", new JsonObject
+{
+    ["partId"] = newPartId,
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+    ["notes"] = new JsonArray { new JsonObject { ["position"] = 480, ["duration"] = 480, ["tone"] = 62, ["lyric"] = "\u4e00" } },
+});
+var warningCount = cjkNotes["warnings"]?.AsArray().Count ?? 0;
+Check(warningCount >= 1, "a non-latin lyric on the default phonemizer produces a warning");
 
 var removedPart = await ToolAsync("openutau_remove_part", new JsonObject
 {

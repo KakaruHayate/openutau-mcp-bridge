@@ -91,11 +91,27 @@ internal static class WriteTools
         {
             ids.Add(Session.IdOf(note));
         }
+
+        // The default phonemizer passes the lyric through as the phoneme. That is fine for
+        // "a" and fatal for "一" once a DiffSinger model is involved, so say it early.
+        var warnings = new JsonArray();
+        var track = part.trackNo >= 0 && part.trackNo < project.tracks.Count ? project.tracks[part.trackNo] : null;
+        if (track != null && PhonemizerTools.IsDefault(track.Phonemizer))
+        {
+            var nonLatin = created.FirstOrDefault(n => n.lyric != null && n.lyric.Any(ch => ch > 0x7F));
+            if (nonLatin != null)
+            {
+                warnings.Add(
+                    $"Track {track.TrackNo} uses the pass-through phonemizer, so the lyric '{nonLatin.lyric}' reaches the singer verbatim and the render will most likely fail. Choose one with openutau_set_track_phonemizer (openutau_list_phonemizers shows the installed ones).");
+            }
+        }
+
         return new JsonObject
         {
             ["dryRun"] = false,
             ["revision"] = Session.Revision,
             ["added"] = ids,
+            ["warnings"] = warnings,
         };
     }
 

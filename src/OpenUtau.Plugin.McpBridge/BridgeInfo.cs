@@ -6,7 +6,7 @@ namespace OpenUtau.Plugin.McpBridge;
 internal static class BridgeInfo
 {
     /// <summary>Tool-surface contract version. Bump when tools are added or change meaning.</summary>
-    public const string Protocol = "3";
+    public const string Protocol = "4";
 
     public const string ServerName = "OpenUtau MCP Bridge";
 

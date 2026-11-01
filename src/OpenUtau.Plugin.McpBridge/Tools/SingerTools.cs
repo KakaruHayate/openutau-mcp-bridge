@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using OpenUtau.Core;
+using OpenUtau.Api;
 using OpenUtau.Classic;
 using OpenUtau.Core.Render;
 using OpenUtau.Core.Ustx;
@@ -52,6 +53,7 @@ internal static class SingerTools
         var (project, trackNo, track) = TrackTarget(args);
         CheckRevision(args);
         var dryRun = Args.Bool(args, "dryRun", true);
+        var followDefault = Args.Bool(args, "followDefaultPhonemizer", true);
         var singerId = Args.ReqStr(args, "singerId");
         var singer = Find(singerId);
 
@@ -59,6 +61,37 @@ internal static class SingerTools
         {
             throw new BridgeException("unsupported_feature",
                 $"Singer '{singerId}' is installed but not loaded by OpenUtau yet; open the Singers dialog once and retry.");
+        }
+
+        // Two things have to follow the singer or the render fails outright: a renderer
+        // that supports its type, and a phonemizer that knows its language. The editor
+        // asks the user; an agent gets the defaults instead, and both are reported.
+        URenderSettings? renderFix = null;
+        var supportedRenderers = Renderers.GetSupportedRenderers(singer.SingerType);
+        if (supportedRenderers.Length > 0
+            && !supportedRenderers.Contains(track.RendererSettings.renderer ?? string.Empty))
+        {
+            var preferred = supportedRenderers[0];
+            try
+            {
+                var configured = Renderers.GetDefaultRenderer(singer.SingerType);
+                if (supportedRenderers.Contains(configured))
+                {
+                    preferred = configured;
+                }
+            }
+            catch
+            {
+                // Fall back to the first supported renderer.
+            }
+            renderFix = new URenderSettings { renderer = preferred };
+        }
+
+        PhonemizerFactory? followUp = null;
+        if (followDefault && PhonemizerTools.IsDefault(track.Phonemizer)
+            && !string.IsNullOrWhiteSpace(singer.DefaultPhonemizer))
+        {
+            followUp = PhonemizerTools.Resolve(singer.DefaultPhonemizer!);
         }
 
         if (dryRun)
@@ -70,6 +103,8 @@ internal static class SingerTools
                 ["singerId"] = singer.Id,
                 ["singerName"] = singer.Name,
                 ["singerType"] = singer.SingerType.ToString(),
+                ["renderer"] = renderFix?.renderer ?? track.RendererSettings.renderer ?? string.Empty,
+                ["phonemizer"] = followUp?.Id ?? track.Phonemizer?.Id ?? string.Empty,
             };
         }
 
@@ -77,6 +112,14 @@ internal static class SingerTools
         try
         {
             DocManager.Inst.ExecuteCmd(new TrackChangeSingerCommand(project, track, singer));
+            if (renderFix != null)
+            {
+                DocManager.Inst.ExecuteCmd(new TrackChangeRenderSettingCommand(project, track, renderFix));
+            }
+            if (followUp != null)
+            {
+                DocManager.Inst.ExecuteCmd(new TrackChangePhonemizerCommand(project, track, followUp.Create()));
+            }
         }
         finally
         {
@@ -96,6 +139,10 @@ internal static class SingerTools
             ["singerId"] = singer.Id,
             ["singerName"] = singer.Name,
             ["singerType"] = singer.SingerType.ToString(),
+            ["renderer"] = track.RendererSettings.renderer ?? string.Empty,
+            ["rendererSource"] = renderFix != null ? "singer type" : "unchanged",
+            ["phonemizer"] = track.Phonemizer?.Id ?? string.Empty,
+            ["phonemizerSource"] = followUp != null ? "singer default" : "unchanged",
         };
     }
 
