@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
@@ -9,7 +9,7 @@ namespace OpenUtau.Plugin.McpBridge.Tools;
 /// <summary>
 /// Audio export. The host's export helpers swallow their own exceptions and only post a
 /// notification, so every export renders into a temporary path, verifies the result, and
-/// only then publishes 鈥?a failed render must never leave a plausible-looking file.
+/// only then publishes: a failed render must never leave a plausible-looking file.
 /// </summary>
 internal static class ExportTools
 {
