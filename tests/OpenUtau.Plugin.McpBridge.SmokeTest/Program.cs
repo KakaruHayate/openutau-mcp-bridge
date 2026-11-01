@@ -120,6 +120,7 @@ foreach (var expected in new[]
     "openutau_job_get", "openutau_job_list", "openutau_job_cancel",
     "openutau_packages_list", "openutau_packages_search", "openutau_packages_install",
     "openutau_packages_uninstall", "openutau_packages_refresh",
+    "openutau_add_track", "openutau_remove_track",
     "openutau_add_part", "openutau_remove_part",
     "openutau_project_info", "openutau_project_new",
     "openutau_project_open",
@@ -136,7 +137,7 @@ foreach (var tool in tools)
 // ---- status --------------------------------------------------------------------
 
 var status = await ToolAsync("openutau_status");
-Check(status["bridge"]?["protocol"]?.GetValue<int>() == 2, "status protocol");
+Check(status["bridge"]?["protocol"]?.GetValue<int>() == 3, "status protocol");
 Check(status["project"]?["sessionId"]?.GetValue<string>()?.Length == 32, "status session id");
 
 // ---- snapshot ------------------------------------------------------------------
@@ -558,6 +559,42 @@ var noSingerRenderer = await ToolAsync("openutau_set_track_renderer", new JsonOb
 Check(noSingerRenderer["error"]?.GetValue<string>() == "invalid_request", "renderer binding needs a singer first");
 // ---- parts ---------------------------------------------------------------------
 
+// ---- tracks --------------------------------------------------------------------
+
+var tracksBefore = (await ToolAsync("openutau_read_snapshot"))["tracks"]!.AsArray().Count;
+var addedTrack = await ToolAsync("openutau_add_track", new JsonObject
+{
+    ["name"] = "Harmony",
+    ["color"] = "Green",
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+});
+Check(addedTrack["__isError"] == null, "add_track committed");
+if (addedTrack["__isError"] != null)
+{
+    Console.WriteLine("add_track error: " + addedTrack.ToJsonString());
+}
+var trackAfterAdd = await ToolAsync("openutau_read_snapshot");
+Check(trackAfterAdd["tracks"]!.AsArray().Count == tracksBefore + 1, "add_track grew the track list");
+var newTrackNo = addedTrack["trackNo"]!.GetValue<int>();
+Check(trackAfterAdd["tracks"]![newTrackNo]!["name"]!.GetValue<string>() == "Harmony", "new track carries its name");
+
+var removedTrack = await ToolAsync("openutau_remove_track", new JsonObject
+{
+    ["trackNo"] = newTrackNo,
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = false,
+});
+Check(removedTrack["removed"]?.GetValue<bool>() == true, "remove_track committed");
+Check((await ToolAsync("openutau_read_snapshot"))["tracks"]!.AsArray().Count == tracksBefore, "remove_track restored the count");
+
+var lastTrack = await ToolAsync("openutau_remove_track", new JsonObject
+{
+    ["trackNo"] = 0,
+    ["expectedRevision"] = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>(),
+    ["dryRun"] = true,
+});
+Check(lastTrack["error"]?.GetValue<string>() == "invalid_request", "the last track cannot be removed");
 var revisionParts = (await ToolAsync("openutau_status"))["project"]!["revision"]!.GetValue<long>();
 var partsBefore = (await ToolAsync("openutau_read_snapshot"))["parts"]!.AsArray().Count;
 var addedPart = await ToolAsync("openutau_add_part", new JsonObject

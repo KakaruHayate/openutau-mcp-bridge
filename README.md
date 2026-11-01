@@ -8,7 +8,7 @@ edit the project that is currently open.
   mechanism and adds its own entry under **Batch Edits -> External**.
 - Loopback only (`127.0.0.1`), no telemetry, and it never saves your project.
 
-> **Status: M8.** 43 tools: reads, note writes, musical edits, project lifecycle,
+> **Status: M8.** 45 tools: reads, note writes, musical edits, project lifecycle,
 > singer/renderer binding, export (mixdown and stems) with a job ledger, and package
 > management with missing-package self-healing. CI runs the smoke test on three
 > platforms against two OpenUtau revisions.

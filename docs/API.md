@@ -55,6 +55,7 @@ Version: `protocol = 1` (the tool-surface contract; independent of the OpenUtau 
 
 Exports and registry lookups run as jobs: the call returns a `jobId`, the product is read
 from the path the job wrote, and a failed or cancelled export publishes nothing.
+| `openutau_add_track` / `openutau_remove_track` | write | track_props + history |
 | `openutau_add_part` / `openutau_remove_part` | write | part_geometry + history |
 | `openutau_project_info` | read | project_lifecycle |
 | `openutau_project_new` | write | project_lifecycle |

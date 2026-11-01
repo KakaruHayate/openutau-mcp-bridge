@@ -422,6 +422,30 @@ internal static class ToolRegistry
             PackageTools.Refresh),
 
         new(
+            "openutau_add_track",
+            "Add track",
+            "Append a track (at `index` when given). A project starts with one track; more than one voice needs this.",
+            new[] { "track_props", "history" },
+            Schema(
+                P("index", "integer", "Insert position; default is the end."),
+                P("name", "string", "Track name."),
+                P("color", "string", "Host color name, e.g. Blue."),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            TrackTools.AddTrack),
+
+        new(
+            "openutau_remove_track",
+            "Remove track",
+            "Remove a track and every part on it. Refuses to remove the last remaining track.",
+            new[] { "track_props", "history" },
+            Schema(
+                P("trackNo", "integer", "Track index.", true),
+                P("expectedRevision", "integer", "Document revision from status/snapshot.", true),
+                P("dryRun", "boolean", "Default true: validate and preview only.")),
+            TrackTools.RemoveTrack),
+
+        new(
             "openutau_add_part",
             "Add part",
             "Create an empty voice part on a track. Notes can then be added with add_notes.",
